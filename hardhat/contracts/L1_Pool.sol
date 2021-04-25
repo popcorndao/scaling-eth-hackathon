@@ -144,4 +144,28 @@ contract L1_Pool is ERC20, Ownable {
     dai.approve(address(this), amount);
     dai.transferFrom(address(this), to, amount);
   }
+  
+  function _totalValue() internal view returns (uint256) {
+    uint256 yvShareBalance = yearnVault.balanceOf(address(this));
+    return _yearnShareValue(yvShareBalance);
+  }
+
+  function totalValue() external view returns (uint256) {
+    return _totalValue();
+  }
+
+  function poolTokenValue() external view returns (uint256) {
+    return this.valueFor(10 ** this.decimals());
+  }
+
+  function valueFor(uint256 poolTokens) external view returns (uint256) {
+    uint256 yvShares = _yearnSharesFor(poolTokens);
+    uint256 shareValue =_yearnShareValue(yvShares);
+    return shareValue;
+  }
+
+  function _yearnShareValue(uint256 yvShares) internal view returns (uint256) {
+    uint256 crvLPTokens = yearnVault.pricePerShare() * yvShares / YEARN_PRECISION;
+    return curveDepositZap.calc_withdraw_one_coin(crvLPTokens, 1);
+  }
 }
