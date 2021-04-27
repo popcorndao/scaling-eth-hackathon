@@ -7,5 +7,7 @@ artifacts-ovm/
 cache/
 cache-ovm/
 optimism
+typechain/
 
 .env
+yarn-error.log
