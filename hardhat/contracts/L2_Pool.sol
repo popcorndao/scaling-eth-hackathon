@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "hardhat/console.sol";
 /* Library Imports */
-import { OVM_CrossDomainEnabled } from "@eth-optimism/contracts/libraries/bridge/OVM_CrossDomainEnabled.sol"
+import { OVM_CrossDomainEnabled } from "@eth-optimism/contracts/libraries/bridge/OVM_CrossDomainEnabled.sol";
 
 
 contract L2_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
@@ -43,17 +43,13 @@ contract L2_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
 
     L2_dai.withdrawTo(L1_Pool, amount);
     
-    sendCrossDomainMessage(L1_Pool, 
-      abi.encodeWithSignature(
-        "deposit(uint256)",
-        amount,
-    ), 100000);
-
     return this.balanceOf(msg.sender);
   }
 
   function withdraw(uint256 amount) external returns (uint256 withdrawalAmount) {
-    assert(amount <= this.balanceOf(msg.sender));
+    // check if timelock has expired
+    
+    require(amount <= this.balanceOf(msg.sender));
     _burnPoolTokens(msg.sender, amount);
 
     sendCrossDomainMessage(L1_Pool, 
@@ -65,4 +61,6 @@ contract L2_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
     );
 
   }
+
+
 }

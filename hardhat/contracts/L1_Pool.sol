@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "hardhat/console.sol";
 
 /* Library Imports */
-import { OVM_CrossDomainEnabled } from "@eth-optimism/contracts/libraries/bridge/OVM_CrossDomainEnabled.sol"
+import { OVM_CrossDomainEnabled } from "@eth-optimism/contracts/libraries/bridge/OVM_CrossDomainEnabled.sol";
 
 
 interface CrvLPToken is IERC20 {}
@@ -48,6 +48,7 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
   CurveDepositZap public curveDepositZap;
   address public L2_Pool;
   address public rewardsManager;
+  uint256 public pendingDeposits;
   uint256 constant YEARN_PRECISION = 10e17;
 
   event Deposit(address from, uint256 deposit, uint256 poolTokens);
@@ -67,15 +68,20 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
   }
 
   function setL2Pool(address _address) onlyOwner {
-    L2_Pool = address;
+    L2_Pool = _address;
   }
 
-  function deposit(uint256 amount) external returns (uint256) onlyFromCrossDomainAccount(L2_Pool) {
-    uint256 crvLPTokenAmount = _sendToCurve(amount);
+  function deposit(uint256 amount) public {
+    // todo: mint POP for incentives
+    uint256 currentBalance = dai.balanceOf(address(this));
+    require(currentBalance > 0, "not enough balance");
+
+    uint256 crvLPTokenAmount = _sendToCurve(currentBalance);
     _sendToYearn(crvLPTokenAmount);
   }
 
-  function withdraw(uint256 amount) external returns (uint256 withdrawalAmount) onlyFromCrossDomainAccount(L2_Pool) {
+  function withdraw(uint256 amount, address _address) external returns (uint256 withdrawalAmount) onlyFromCrossDomainAccount(L2_Pool) {
+
     uint256 yvShareWithdrawal = _yearnSharesFor(amount);
 
     _burnPoolTokens(msg.sender, amount);
@@ -83,7 +89,7 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
     uint256 crvLPTokenAmount = _withdrawFromYearn(yvShareWithdrawal);
     uint256 daiAmount = _withdrawFromCurve(crvLPTokenAmount);
 
-    _transferWithdrawal(daiAmount);
+    // Send to L1Erc20Gateway.depositTo(_address, amount)
 
     return (daiAmount);
   }
