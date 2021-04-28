@@ -1,7 +1,7 @@
 
 // SPDX-License-Identifier: MIT
 
-pragma solidity >=0.7.0 <0.8.0;
+pragma solidity >=0.7.0 <0.8.4;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -29,7 +29,7 @@ contract L2_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
     IERC20 dai_,
     address L1Pool,
     address _l2CrossDomainMessenger
-  ) OVM_CrossDomainEnabled(_l2CrossDomainMessenger) 
+  ) OVM_CrossDomainEnabled(_l2CrossDomainMessenger)
     ERC20("Popcorn DAI L1_Pool", "L1_popDAI")  {
     L2_dai = dai_;
     L1_Pool = L1Pool;
@@ -39,28 +39,35 @@ contract L2_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
     require(L2_dai.balanceOf(msg.sender) >= amount, "not enough DAI");
 
     uint256 poolTokens = _issuePoolTokens(msg.sender, amount);
-    emit Deposit(msg.sender, amount);
+    emit Deposit(msg.sender, amount, poolTokens);
 
     L2_dai.withdrawTo(L1_Pool, amount);
-    
+
     return this.balanceOf(msg.sender);
   }
 
   function withdraw(uint256 amount) external returns (uint256 withdrawalAmount) {
     // check if timelock has expired
-    
+
     require(amount <= this.balanceOf(msg.sender));
     _burnPoolTokens(msg.sender, amount);
 
-    sendCrossDomainMessage(L1_Pool, 
+    sendCrossDomainMessage(L1_Pool,
       abi.encodeWithSignature(
         "withdraw(unit256,address)",
         amount,
         msg.sender
         )
     );
-
   }
 
+  function _burnPoolTokens(address from, uint256 amount) internal returns (uint256 burnedAmount) {
+    _burn(from, amount);
+    return amount;
+  }
 
+  function _issuePoolTokens(address to, uint256 amount) internal returns (uint256 issuedAmount) {
+    _mint(to, amount);
+    return amount;
+  }
 }
