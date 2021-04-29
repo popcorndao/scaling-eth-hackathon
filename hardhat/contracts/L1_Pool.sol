@@ -1,7 +1,7 @@
 
 // SPDX-License-Identifier: MIT
 
-pragma solidity >=0.7.0 <0.8.0;
+pragma solidity >=0.7.0 <0.8.4;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -58,7 +58,7 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
     IERC20 dai_,
     YearnVault yearnVault_,
     CurveDepositZap curveDepositZap_,
-    _l1CrossDomainMessenger
+    address _l1CrossDomainMessenger
   ) ERC20("Popcorn DAI L1_Pool", "L1_popDAI")
     OVM_CrossDomainEnabled(_l1CrossDomainMessenger) {
     dai = dai_;
@@ -67,7 +67,7 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
     curveDepositZap = curveDepositZap_;
   }
 
-  function setL2Pool(address _address) onlyOwner {
+  function setL2Pool(address _address) public onlyOwner {
     L2_Pool = _address;
   }
 
@@ -80,7 +80,11 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
     _sendToYearn(crvLPTokenAmount);
   }
 
-  function withdraw(uint256 amount, address _address) external returns (uint256 withdrawalAmount) onlyFromCrossDomainAccount(L2_Pool) {
+  function withdraw(uint256 amount, address _address)
+    external
+    onlyFromCrossDomainAccount(L2_Pool)
+    returns (uint256 withdrawalAmount)
+  {
 
     uint256 yvShareWithdrawal = _yearnSharesFor(amount);
 
@@ -150,7 +154,7 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
     dai.approve(address(this), amount);
     dai.transferFrom(address(this), to, amount);
   }
-  
+
   function _totalValue() internal view returns (uint256) {
     uint256 yvShareBalance = yearnVault.balanceOf(address(this));
     return _yearnShareValue(yvShareBalance);
