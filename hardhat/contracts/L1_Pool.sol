@@ -71,11 +71,10 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
     L2_Pool = _address;
   }
 
-  function deposit(uint256 amount) public {
+  function deposit() public {
     // todo: mint POP for incentives
     uint256 currentBalance = dai.balanceOf(address(this));
     require(currentBalance > 0, "not enough balance");
-
     uint256 crvLPTokenAmount = _sendToCurve(currentBalance);
     _sendToYearn(crvLPTokenAmount);
   }

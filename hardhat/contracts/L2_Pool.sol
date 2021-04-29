@@ -1,16 +1,16 @@
 
 // SPDX-License-Identifier: MIT
 
-pragma solidity >=0.7.0 <0.8.4;
+pragma solidity >0.5.0 <0.8.4;
+pragma experimental ABIEncoderV2;
 
 import "./L2DepositedERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "hardhat/console.sol";
 /* Library Imports */
 import { OVM_CrossDomainEnabled } from "@eth-optimism/contracts/libraries/bridge/OVM_CrossDomainEnabled.sol";
 
-contract L2_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
+contract L2_Pool is ERC20, OVM_CrossDomainEnabled {
 
   using SafeMath for uint256;
 
@@ -22,13 +22,13 @@ contract L2_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
   event Withdrawal(address to, uint256 amount);
 
   constructor(
-    L2DepositedERC20 dai_,
-    address L1Pool,
+    L2DepositedERC20 _dai,
+    address _L1Pool,
     address _l2CrossDomainMessenger
   ) OVM_CrossDomainEnabled(_l2CrossDomainMessenger)
     ERC20(100000, "Popcorn DAI L1_Pool")  {
-    L2_dai = dai_;
-    L1_Pool = L1Pool;
+    L2_dai = _dai;
+    L1_Pool = _L1Pool;
   }
 
   function deposit(uint256 amount) external returns (uint256) {
@@ -36,7 +36,7 @@ contract L2_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
 
     uint256 poolTokens = _issuePoolTokens(msg.sender, amount);
     emit Deposit(msg.sender, amount, poolTokens);
-
+    L2_dai.transferFrom(msg.sender, address(this), amount);
     L2_dai.withdrawTo(L1_Pool, amount);
 
     return this.balanceOf(msg.sender);
