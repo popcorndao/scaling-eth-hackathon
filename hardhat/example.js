@@ -1,15 +1,20 @@
 const ethers = require('ethers')
 const { Watcher } = require('@eth-optimism/watcher')
 const { getContractFactory } = require('@eth-optimism/contracts')
+const { createImportSpecifier } = require('typescript')
 
 // Set up some contract factories. You can ignore this stuff.
-const factory = (name, ovm = false) => {
-  const artifact = require(`./artifacts${ovm ? '-ovm' : ''}/contracts/${name}.sol/${name}.json`)
+const factory = (name, ovm = false, mocks= false) => {
+  const artifact = require(`./artifacts${ovm ? '-ovm' : ''}/contracts/${mocks ? '/mocks/' : ''}${name}.sol/${name}.json`)
   return new ethers.ContractFactory(artifact.abi, artifact.bytecode)
 }
 const factory__L1_ERC20 = factory('ERC20')
 const factory__L2_ERC20 = factory('L2DepositedERC20', true)
 const factory__L1_ERC20Gateway = getContractFactory('OVM_L1ERC20Gateway')
+const factory__L1_Pool = factory('L1_Pool');
+const factory__L2_Pool = factory('L2_Pool');
+const factory__L1_MockYearnVault = factory('MockYearnV2Vault', false, true);
+const factory__L1_MockCurveDepositZap = factory('MockCurveDepositZap', false, true);
 
 async function main() {
   // Set up our RPC provider connections.
@@ -41,36 +46,82 @@ async function main() {
   })
 
   // Deploy an ERC20 token on L1.
-  console.log('Deploying L1 ERC20...')
-  const L1_ERC20 = await factory__L1_ERC20.connect(l1Wallet).deploy(
+  console.log('Deploying L1 mockDAI...')
+  const L1_mockDAI = await factory__L1_ERC20.connect(l1Wallet).deploy(
     1234, //initialSupply
-    'L1 ERC20', //name
+    'mockDAI', //name
   )
-  await L1_ERC20.deployTransaction.wait()
+  await L1_mockDAI.deployTransaction.wait()
+
+  console.log("Deploying L1 mock crvLP token ...")
+  const L1_mockCrvLPToken = await factory__L1_ERC20.connect(l1Wallet).deploy(
+    0, //initialSupply
+    'mockCrvLPToken', //name
+  )
+  await L1_mockCrvLPToken.deployTransaction.wait()
+
+
+  console.log("Deploying L1_CurveDepositZap ...");
+  const L1_CurveDepositZap = await factory__L1_MockCurveDepositZap.connect(l1Wallet).deploy(
+    L1_mockCrvLPToken.address,
+    L1_mockDAI.address
+  )
+  await L1_CurveDepositZap.deployTransaction.wait();
+
+  console.log("Deploying L1_MockYearnVault ...");
+  const L1_YearnVault = await factory__L1_MockYearnVault.connect(l1Wallet).deploy(
+    L1_mockCrvLPToken.address
+  );
+  await L1_YearnVault.deployTransaction.wait();
+
+
+  console.log("Deploying L1_Pool ...")
+  const L1_Pool = await factory__L1_Pool.connect(l1Wallet).deploy(
+    L1_mockDAI.address,
+    L1_YearnVault.address,
+    L1_CurveDepositZap.address,
+    l1MessengerAddress
+  )
+  await L1_Pool.deployTransaction.wait();
 
   // Deploy the paired ERC20 token to L2.
   console.log('Deploying L2 ERC20...')
-  const L2_ERC20 = await factory__L2_ERC20.connect(l2Wallet).deploy(
+  const L2_oDAI = await factory__L2_ERC20.connect(l2Wallet).deploy(
     l2MessengerAddress,
-    'L2 ERC20', //name
+    'oDAI', //name
     {
-      gasPrice: 0
+      gasPrice: 0,
+      gasLimit: 8900000
     }
   )
-  await L2_ERC20.deployTransaction.wait()
+  await L2_oDAI.deployTransaction.wait()
+
+
+  console.log("Deploying L2_Pool ...")
+  const L2_Pool = await factory__L2_Pool.connect(l2Wallet).deploy(
+    L2_oDAI.address,
+    L1_Pool.address,
+    l2MessengerAddress,
+    { gasPrice: 0, gasLimit: 8900000 }
+  )
+
+  await L2_Pool.deployTransaction.wait();
+
+  console.log('Setting L2_Pool address on L1_Pool');
+  await L1_Pool.connect(l1Wallet).setL2Pool(L2_Pool.address);
 
   // Create a gateway that connects the two contracts.
   console.log('Deploying L1 ERC20 Gateway...')
   const L1_ERC20Gateway = await factory__L1_ERC20Gateway.connect(l1Wallet).deploy(
-    L1_ERC20.address,
-    L2_ERC20.address,
+    L1_mockDAI.address,
+    L2_oDAI.address,
     l1MessengerAddress
   )
   await L1_ERC20Gateway.deployTransaction.wait()
 
   // Make the L2 ERC20 aware of the gateway contract.
   console.log('Initializing L2 ERC20...')
-  const tx0 = await L2_ERC20.init(
+  const tx0 = await L2_oDAI.init(
     L1_ERC20Gateway.address,
     {
       gasPrice: 0
@@ -79,12 +130,12 @@ async function main() {
   await tx0.wait()
 
   // Initial balances.
-  console.log(`Balance on L1: ${await L1_ERC20.balanceOf(l1Wallet.address)}`) // 1234
-  console.log(`Balance on L2: ${await L2_ERC20.balanceOf(l1Wallet.address)}`) // 0
+  console.log(`Balance on L1: ${await L1_mockDAI.balanceOf(l1Wallet.address)}`) // 1234
+  console.log(`Balance on L2: ${await L2_oDAI.balanceOf(l1Wallet.address)}`) // 0
 
   // Allow the gateway to lock up some of our tokens.
   console.log('Approving tokens for ERC20 gateway...')
-  const tx1 = await L1_ERC20.approve(L1_ERC20Gateway.address, 1234)
+  const tx1 = await L1_mockDAI.approve(L1_ERC20Gateway.address, 1234)
   await tx1.wait()
 
   // Lock the tokens up inside the gateway and ask the L2 contract to mint new ones.
@@ -98,12 +149,22 @@ async function main() {
   await watcher.getL2TransactionReceipt(msgHash1)
 
   // Log some balances to see that it worked!
-  console.log(`Balance on L1: ${await L1_ERC20.balanceOf(l1Wallet.address)}`) // 0
-  console.log(`Balance on L2: ${await L2_ERC20.balanceOf(l1Wallet.address)}`) // 1234
+  console.log(`Balance on L1: ${await L1_mockDAI.balanceOf(l1Wallet.address)}`) // 0
+  console.log(`Balance on L2: ${await L2_oDAI.balanceOf(l1Wallet.address)}`) // 1234
+
+
+  console.log("Depositing oDAI into L1_Pool and waiting for withdrawal to be relayed to L1 ...");
+  const depositTx = await L2_Pool.deposit(1234);
+  const [depositHash] = await watcher.getMessageHashesFromL2Tx(depositTx.hash);
+  await watcher.getL1TransactionReceipt(depositHash);
+
+  console.log("Total assets in yearn vault:" , await L1_YearnVault.totalAssets());
+
+  /** 
 
   // Burn the tokens on L2 and ask the L1 contract to unlock on our behalf.
   console.log(`Withdrawing tokens back to L1 ERC20...`)
-  const tx3 = await L2_ERC20.withdraw(
+  const tx3 = await L2_oDAI.withdraw(
     1234,
     {
       gasPrice: 0
@@ -117,8 +178,9 @@ async function main() {
   await watcher.getL1TransactionReceipt(msgHash2)
 
   // Log balances again!
-  console.log(`Balance on L1: ${await L1_ERC20.balanceOf(l1Wallet.address)}`) // 1234
-  console.log(`Balance on L2: ${await L2_ERC20.balanceOf(l1Wallet.address)}`) // 0
+  console.log(`Balance on L1: ${await L1_mockDAI.balanceOf(l1Wallet.address)}`) // 1234
+  console.log(`Balance on L2: ${await L2_oDAI.balanceOf(l1Wallet.address)}`) // 0
+  **/
 }
 
 main()

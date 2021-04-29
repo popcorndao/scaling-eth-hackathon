@@ -3,22 +3,18 @@
 
 pragma solidity >=0.7.0 <0.8.4;
 
+import "./L2DepositedERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "hardhat/console.sol";
 /* Library Imports */
 import { OVM_CrossDomainEnabled } from "@eth-optimism/contracts/libraries/bridge/OVM_CrossDomainEnabled.sol";
 
-
 contract L2_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
 
   using SafeMath for uint256;
-  using SafeERC20 for IERC20;
 
-  IERC20 public L2_dai;
+  L2DepositedERC20 public L2_dai;
   address public L1_Pool;
 
 
@@ -26,11 +22,11 @@ contract L2_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
   event Withdrawal(address to, uint256 amount);
 
   constructor(
-    IERC20 dai_,
+    L2DepositedERC20 dai_,
     address L1Pool,
     address _l2CrossDomainMessenger
   ) OVM_CrossDomainEnabled(_l2CrossDomainMessenger)
-    ERC20("Popcorn DAI L1_Pool", "L1_popDAI")  {
+    ERC20(100000, "Popcorn DAI L1_Pool")  {
     L2_dai = dai_;
     L1_Pool = L1Pool;
   }
@@ -57,7 +53,8 @@ contract L2_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
         "withdraw(unit256,address)",
         amount,
         msg.sender
-        )
+        ),
+        1000000
     );
   }
 
