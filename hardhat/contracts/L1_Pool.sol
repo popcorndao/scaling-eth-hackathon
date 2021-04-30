@@ -37,6 +37,11 @@ interface CurveDepositZap {
   function calc_withdraw_one_coin(uint256 amount, int128 i) external view returns (uint256);
 }
 
+interface OVM_L1ERC20Gateway {
+  function depositTo(address _address, uint256 amount) external;
+}
+
+
 contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
 
   using SafeMath for uint256;
@@ -46,10 +51,12 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
   CrvLPToken public crvLPToken;
   YearnVault public yearnVault;
   CurveDepositZap public curveDepositZap;
+  OVM_L1ERC20Gateway public L1_ERC20Gateway;
   address public L2_Pool;
   address public rewardsManager;
   uint256 public pendingDeposits;
   uint256 constant YEARN_PRECISION = 10e17;
+  uint256 public testValue = 0;
 
   event Deposit(address from, uint256 deposit, uint256 poolTokens);
   event Withdrawal(address to, uint256 amount);
@@ -58,13 +65,15 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
     IERC20 dai_,
     YearnVault yearnVault_,
     CurveDepositZap curveDepositZap_,
-    address _l1CrossDomainMessenger
+    address _l1CrossDomainMessenger,
+    OVM_L1ERC20Gateway _l1Erc20Gateway
   ) ERC20("Popcorn DAI L1_Pool", "L1_popDAI_LP")
     OVM_CrossDomainEnabled(_l1CrossDomainMessenger) {
     dai = dai_;
     yearnVault = yearnVault_;
     crvLPToken = CrvLPToken(yearnVault.token());
     curveDepositZap = curveDepositZap_;
+    L1_ERC20Gateway = _l1Erc20Gateway;
   }
 
   function setL2Pool(address _address) public onlyOwner {
@@ -79,10 +88,14 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
     _sendToYearn(crvLPTokenAmount);
   }
 
+  function increment(uint256 amount) public {
+    testValue = testValue + amount;
+  }
+
   function withdraw(uint256 amount, address _address)
     external
     onlyFromCrossDomainAccount(L2_Pool)
-    returns (uint256 withdrawalAmount)
+    returns (uint256 daiAmount)
   {
 
     uint256 yvShareWithdrawal = _yearnSharesFor(amount);
@@ -92,7 +105,8 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
     uint256 crvLPTokenAmount = _withdrawFromYearn(yvShareWithdrawal);
     uint256 daiAmount = _withdrawFromCurve(crvLPTokenAmount);
 
-    // Send to L1Erc20Gateway.depositTo(_address, amount)
+    dai.approve(address(L1_ERC20Gateway), daiAmount);
+    L1_ERC20Gateway.depositTo(_address, daiAmount);
 
     return (daiAmount);
   }

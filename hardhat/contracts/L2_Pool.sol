@@ -10,6 +10,11 @@ import "hardhat/console.sol";
 /* Library Imports */
 import { OVM_CrossDomainEnabled } from "@eth-optimism/contracts/libraries/bridge/OVM_CrossDomainEnabled.sol";
 
+interface iL1_Pool {
+  function withdraw(uint256 amount, address _address) external returns (uint256);
+}
+
+
 contract L2_Pool is ERC20, OVM_CrossDomainEnabled {
 
   using SafeMath for uint256;
@@ -36,27 +41,51 @@ contract L2_Pool is ERC20, OVM_CrossDomainEnabled {
 
     uint256 poolTokens = _issuePoolTokens(msg.sender, amount);
     emit Deposit(msg.sender, amount, poolTokens);
+    // set timelock for withdrawal
     L2_dai.transferFrom(msg.sender, address(this), amount);
     L2_dai.withdrawTo(L1_Pool, amount);
 
     return this.balanceOf(msg.sender);
   }
 
-  function withdraw(uint256 amount) external returns (uint256 withdrawalAmount) {
+  function withdraw(uint256 amount) external {
     // check if timelock has expired
 
     require(amount <= this.balanceOf(msg.sender));
     _burnPoolTokens(msg.sender, amount);
 
-    sendCrossDomainMessage(L1_Pool,
-      abi.encodeWithSignature(
-        "withdraw(unit256,address)",
-        amount,
-        msg.sender
-        ),
-        1000000
-    );
+        bytes memory data =
+          abi.encodeWithSignature(
+          "withdraw(unit256,address)",
+            amount,
+            msg.sender
+          );
+
+        // Send message up to L1 gateway
+        sendCrossDomainMessage(
+            address(L1_Pool),
+            data,
+            8900000
+        );
   }
+
+    function increment(uint256 amount) external {
+        bytes memory data =
+          abi.encodeWithSelector(
+          "increment(amount)",
+            amount
+          );
+
+        // Send message up to L1 gateway
+        sendCrossDomainMessage(
+            address(L1_Pool),
+            data,
+            8900000
+        );
+  }
+
+
+
 
   function _burnPoolTokens(address from, uint256 amount) internal returns (uint256 burnedAmount) {
     _burn(from, amount);
