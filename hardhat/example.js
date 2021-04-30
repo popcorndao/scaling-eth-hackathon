@@ -150,10 +150,13 @@ async function main() {
   console.log(`Balance on L2: ${await L2_oDAI.balanceOf(l1Wallet.address)}`) // 1234
 
 
+  // allow L2_Pool to use our tokens
   console.log("Approving L2_Pool to spend oDAI ... ");
   const approveTx = await L2_oDAI.connect(l2Wallet).approve(L2_Pool.address, 1234, { gasLimit: 8900000, gasPrice: 0})
   await approveTx.wait();
 
+
+  // deposit oDAI into L1_Pool
   console.log("Depositing oDAI into L1_Pool ... ");
   const depositTx = await L2_Pool.connect(l2Wallet).deposit(1234, { gasLimit: 8900000, gasPrice: 0});
   let revertReason = await getOptimismRevertReason({tx: depositTx, provider: l2RpcProvider });
@@ -169,34 +172,10 @@ async function main() {
   await watcher.getL1TransactionReceipt(depositHash);
 
   console.log("Balance of DAI in L1_Pool: ", `${await L1_mockDAI.balanceOf(L1_Pool.address)}`);
-
-  console.log("depositing balance of L1_Pool into strategies ...");
-  const l1DepositTx = await L1_Pool.connect(l1Wallet).deposit({
-    gasLimit: 8900000
-  });
-  await l1DepositTx.wait();
   console.log("Total assets in yearn vault:" , (await L1_YearnVault.totalAssets()).toString());
 
-  console.log("L2->L1 test increment ...");
-  const incrementTx = await L2_Pool.connect(l2Wallet).increment(1234, { gasLimit: 8900000, gasPrice: 0});
-  revertReason = await getOptimismRevertReason({tx: incrementTx, provider: l2RpcProvider });
-  
-  if (revertReason) {
-    console.log(revertReason);
-  }
 
-  await incrementTx.wait();
-
-
-  console.log("waiting for increment message to be relayed to Layer 1 ...")
-  const [incrementHash] = await watcher.getMessageHashesFromL2Tx(incrementTx.hash);
-  console.log("incrementHash:" ,incrementHash);
-  await watcher.getL1TransactionReceipt(incrementHash)
-
-  console.log(`test value: ${L2_Pool.testValue()}`);
-
-  /**
-   * 
+  // withdrawing DAI from L1_Pool
   console.log("Pool Withdrawal (L2->L1->L2) ...");
   const withdrawTx = await L2_Pool.connect(l2Wallet).withdraw(1234, { gasLimit: 8900000, gasPrice: 0});
   revertReason = await getOptimismRevertReason({tx: withdrawTx, provider: l2RpcProvider });
@@ -213,8 +192,8 @@ async function main() {
   await watcher.getL1TransactionReceipt(withdrawHash)
 
   console.log(`oDAI in L2 wallet ${await L2_oDAI.balanceOf(l2Wallet.address)}`);
+  console.log("Total assets in yearn vault:" , (await L1_YearnVault.totalAssets()).toString());
   
-  **/
 
 
 

@@ -67,7 +67,7 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
     CurveDepositZap curveDepositZap_,
     address _l1CrossDomainMessenger,
     OVM_L1ERC20Gateway _l1Erc20Gateway
-  ) ERC20("Popcorn DAI L1_Pool", "L1_popDAI_LP")
+  ) ERC20("Popcorn DAI L1_YieldOptimizerPool", "L1_popDAI_LP")
     OVM_CrossDomainEnabled(_l1CrossDomainMessenger) {
     dai = dai_;
     yearnVault = yearnVault_;
@@ -81,34 +81,25 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
   }
 
   function deposit() public {
-    // todo: mint POP for incentives
     uint256 currentBalance = dai.balanceOf(address(this));
     require(currentBalance > 0, "not enough balance");
     uint256 crvLPTokenAmount = _sendToCurve(currentBalance);
     _sendToYearn(crvLPTokenAmount);
   }
 
-  function increment(uint256 amount) public {
-    testValue = testValue + amount;
-  }
-
   function withdraw(uint256 amount, address _address)
     external
     onlyFromCrossDomainAccount(L2_Pool)
-    returns (uint256 daiAmount)
+    returns (uint256)
   {
-
     uint256 yvShareWithdrawal = _yearnSharesFor(amount);
-
-    _burnPoolTokens(msg.sender, amount);
-
     uint256 crvLPTokenAmount = _withdrawFromYearn(yvShareWithdrawal);
     uint256 daiAmount = _withdrawFromCurve(crvLPTokenAmount);
 
     dai.approve(address(L1_ERC20Gateway), daiAmount);
     L1_ERC20Gateway.depositTo(_address, daiAmount);
 
-    return (daiAmount);
+    return daiAmount;
   }
 
   function _yearnSharesFor(uint256 poolTokenAmount) internal view returns (uint256) {
