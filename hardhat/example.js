@@ -52,24 +52,16 @@ async function main() {
   )
   await L1_mockDAI.deployTransaction.wait()
 
-  console.log("Deploying L1 mock crvLP token ...")
-  const L1_mockCrvLPToken = await factory__L1_ERC20.connect(l1Wallet).deploy(
-    0, //initialSupply
-    'mockCrvLPToken', //name
-  )
-  await L1_mockCrvLPToken.deployTransaction.wait()
-
 
   console.log("Deploying L1_CurveDepositZap ...");
   const L1_CurveDepositZap = await factory__L1_MockCurveDepositZap.connect(l1Wallet).deploy(
-    L1_mockCrvLPToken.address,
     L1_mockDAI.address
   )
   await L1_CurveDepositZap.deployTransaction.wait();
 
   console.log("Deploying L1_MockYearnVault ...");
   const L1_YearnVault = await factory__L1_MockYearnVault.connect(l1Wallet).deploy(
-    L1_mockCrvLPToken.address
+    L1_CurveDepositZap.address
   );
   await L1_YearnVault.deployTransaction.wait();
 
@@ -180,7 +172,7 @@ async function main() {
     gasLimit: 8900000
   });
   await l1DepositTx.wait();
-  console.log("Total assets in yearn vault:" , await L1_YearnVault.totalAssets());
+  console.log("Total assets in yearn vault:" , (await L1_YearnVault.totalAssets()).toString());
 
   /** 
 

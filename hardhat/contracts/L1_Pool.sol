@@ -5,8 +5,8 @@ pragma solidity >=0.7.0 <0.8.4;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "hardhat/console.sol";
 
@@ -59,7 +59,7 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
     YearnVault yearnVault_,
     CurveDepositZap curveDepositZap_,
     address _l1CrossDomainMessenger
-  ) ERC20("Popcorn DAI L1_Pool", "L1_popDAI")
+  ) ERC20("Popcorn DAI L1_Pool", "L1_popDAI_LP")
     OVM_CrossDomainEnabled(_l1CrossDomainMessenger) {
     dai = dai_;
     yearnVault = yearnVault_;
