@@ -1,14 +1,18 @@
 
 // SPDX-License-Identifier: MIT
 
-pragma solidity >=0.7.0 <0.8.0;
+pragma solidity >=0.7.0 <0.8.4;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "hardhat/console.sol";
+
+/* Library Imports */
+import { OVM_CrossDomainEnabled } from "@eth-optimism/contracts/libraries/bridge/OVM_CrossDomainEnabled.sol";
+
 
 interface CrvLPToken is IERC20 {}
 
@@ -33,7 +37,12 @@ interface CurveDepositZap {
   function calc_withdraw_one_coin(uint256 amount, int128 i) external view returns (uint256);
 }
 
-contract L1_Pool is ERC20, Ownable {
+interface OVM_L1ERC20Gateway {
+  function depositTo(address _address, uint256 amount) external;
+}
+
+
+contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
 
   using SafeMath for uint256;
   using SafeERC20 for IERC20;
@@ -42,9 +51,12 @@ contract L1_Pool is ERC20, Ownable {
   CrvLPToken public crvLPToken;
   YearnVault public yearnVault;
   CurveDepositZap public curveDepositZap;
+  OVM_L1ERC20Gateway public L1_ERC20Gateway;
+  address public L2_Pool;
   address public rewardsManager;
+  uint256 public pendingDeposits;
   uint256 constant YEARN_PRECISION = 10e17;
-
+  uint256 public testValue = 0;
 
   event Deposit(address from, uint256 deposit, uint256 poolTokens);
   event Withdrawal(address to, uint256 amount);
@@ -53,39 +65,41 @@ contract L1_Pool is ERC20, Ownable {
     IERC20 dai_,
     YearnVault yearnVault_,
     CurveDepositZap curveDepositZap_,
-    address rewardsManager_
-  ) ERC20("Popcorn DAI L1_Pool", "L1_popDAI") {
+    address _l1CrossDomainMessenger,
+    OVM_L1ERC20Gateway _l1Erc20Gateway
+  ) ERC20("Popcorn DAI L1_YieldOptimizerPool", "L1_popDAI_LP")
+    OVM_CrossDomainEnabled(_l1CrossDomainMessenger) {
     dai = dai_;
     yearnVault = yearnVault_;
     crvLPToken = CrvLPToken(yearnVault.token());
     curveDepositZap = curveDepositZap_;
-    rewardsManager = rewardsManager_;
+    L1_ERC20Gateway = _l1Erc20Gateway;
   }
 
-  function deposit(uint256 amount) external returns (uint256) {
-    uint256 poolTokens = _issuePoolTokens(msg.sender, amount);
-    emit Deposit(msg.sender, amount, poolTokens);
+  function setL2Pool(address _address) public onlyOwner {
+    L2_Pool = _address;
+  }
 
-    dai.transferFrom(msg.sender, address(this), amount);
-    uint256 crvLPTokenAmount = _sendToCurve(amount);
+  function deposit() public {
+    uint256 currentBalance = dai.balanceOf(address(this));
+    require(currentBalance > 0, "not enough balance");
+    uint256 crvLPTokenAmount = _sendToCurve(currentBalance);
     _sendToYearn(crvLPTokenAmount);
-
-    return this.balanceOf(msg.sender);
   }
 
-  function withdraw(uint256 amount) external returns (uint256 withdrawalAmount) {
-    assert(amount <= this.balanceOf(msg.sender));
-
+  function withdraw(uint256 amount, address _address)
+    external
+    onlyFromCrossDomainAccount(L2_Pool)
+    returns (uint256)
+  {
     uint256 yvShareWithdrawal = _yearnSharesFor(amount);
-
-    _burnPoolTokens(msg.sender, amount);
-
     uint256 crvLPTokenAmount = _withdrawFromYearn(yvShareWithdrawal);
     uint256 daiAmount = _withdrawFromCurve(crvLPTokenAmount);
 
-    _transferWithdrawal(daiAmount);
+    dai.approve(address(L1_ERC20Gateway), daiAmount);
+    L1_ERC20Gateway.depositTo(_address, daiAmount);
 
-    return (daiAmount);
+    return daiAmount;
   }
 
   function _yearnSharesFor(uint256 poolTokenAmount) internal view returns (uint256) {
@@ -144,7 +158,7 @@ contract L1_Pool is ERC20, Ownable {
     dai.approve(address(this), amount);
     dai.transferFrom(address(this), to, amount);
   }
-  
+
   function _totalValue() internal view returns (uint256) {
     uint256 yvShareBalance = yearnVault.balanceOf(address(this));
     return _yearnShareValue(yvShareBalance);
