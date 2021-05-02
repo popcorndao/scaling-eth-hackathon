@@ -2,10 +2,10 @@ module.exports = {
   purge: ['./src/**/*.{js,jsx,ts,tsx}', './public/index.html'],
   darkMode: false, // or 'media' or 'class'
   theme: {
-    extend: {},
+    extend: {scale: {"101":"1.01"}},
   },
   variants: {
-    extend: {},
+    extend: { opacity: ['disabled'] },
   },
   plugins: [],
 }

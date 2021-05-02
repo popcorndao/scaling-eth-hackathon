@@ -1,14 +1,21 @@
-import React from 'react'
-import ReactDOM from 'react-dom'
-import { ChainId, DAppProvider } from '@usedapp/core'
-import App from './App'
+import { ChainId, Config, DAppProvider } from "@usedapp/core";
+import React from "react";
+import ReactDOM from "react-dom";
+import App from "./App";
+import "./index.css";
 
-const config = {
-  readOnlyChainId: ChainId.Mainnet,
+const config: Config = {
+  readOnlyChainId: ChainId.Hardhat,
   readOnlyUrls: {
-    [ChainId.Mainnet]: 'https://mainnet.infura.io/v3/62687d1a985d4508b2b7a24827551934',
+    [ChainId.Hardhat]: "http://localhost:9545",
+    [420]: "http://localhost:8545",
   },
-}
+  multicallAddresses: {
+    [ChainId.Hardhat]: "http://localhost:9545",
+    [420]: "http://localhost:8545",
+  },
+  supportedChains: [ChainId.Hardhat, 420],
+};
 
 ReactDOM.render(
   <React.StrictMode>
@@ -16,5 +23,5 @@ ReactDOM.render(
       <App />
     </DAppProvider>
   </React.StrictMode>,
-  document.getElementById('root')
-)
+  document.getElementById("root")
+);
