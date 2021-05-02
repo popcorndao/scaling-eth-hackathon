@@ -51,6 +51,7 @@ async function main() {
     'mockDAI', //name
   )
   await L1_mockDAI.deployTransaction.wait()
+  console.log("L1_mockDAI address: ",L1_mockDAI.address)
 
 
   console.log("Deploying L1_CurveDepositZap ...");
@@ -59,11 +60,15 @@ async function main() {
   )
   await L1_CurveDepositZap.deployTransaction.wait();
 
+  console.log("L1_CurveDepositZap address: ",L1_CurveDepositZap.address)
+
   console.log("Deploying L1_MockYearnVault ...");
   const L1_YearnVault = await factory__L1_MockYearnVault.connect(l1Wallet).deploy(
     L1_CurveDepositZap.address
   );
   await L1_YearnVault.deployTransaction.wait();
+
+  console.log("L1_YearnVault address: ",L1_YearnVault.address)
 
 
   // Deploy the paired ERC20 token to L2.
@@ -78,6 +83,8 @@ async function main() {
   )
   await L2_oDAI.deployTransaction.wait()
 
+  console.log("L2_oDAI address: ",L2_oDAI.address)
+
 
   // Create a gateway that connects the two contracts.
   console.log('Deploying L1 ERC20 Gateway...')
@@ -87,6 +94,8 @@ async function main() {
     l1MessengerAddress
   )
   await L1_ERC20Gateway.deployTransaction.wait()
+
+  console.log("L1_ERC20Gateway address: ",L1_ERC20Gateway.address)
 
   console.log("Deploying L1_Pool ...")
   const L1_Pool = await factory__L1_Pool.connect(l1Wallet).deploy(
@@ -98,6 +107,8 @@ async function main() {
   )
   await L1_Pool.deployTransaction.wait();
 
+  console.log("L1_Pool address: ",L1_Pool.address)
+
 
   console.log("Deploying L2_Pool ...")
   const L2_Pool = await factory__L2_Pool.connect(l2Wallet).deploy(
@@ -106,9 +117,14 @@ async function main() {
     l2MessengerAddress,
     { gasPrice: 0, gasLimit: 8900000 }
   )
-  console.log(await getOptimismRevertReason({tx: L2_Pool.deployTransaction, provider: l2RpcProvider }));
+  //const revertReason1 = await getOptimismRevertReason({tx: L2_Pool.deployTransaction, provider: l2RpcProvider });
+  //if(revertReason1){
+  //  console.log(revertReason1)
+  //}
 
   await L2_Pool.deployTransaction.wait();
+
+  console.log("L2_Pool address: ",L2_Pool.address)
 
   console.log('Setting L2_Pool address on L1_Pool ...');
   const setL2PoolTx = await L1_Pool.connect(l1Wallet).setL2Pool(L2_Pool.address);
@@ -159,11 +175,11 @@ async function main() {
   // deposit oDAI into L1_Pool
   console.log("Depositing oDAI into L1_Pool ... ");
   const depositTx = await L2_Pool.connect(l2Wallet).deposit(1234, { gasLimit: 8900000, gasPrice: 0});
-  let revertReason = await getOptimismRevertReason({tx: depositTx, provider: l2RpcProvider });
+  //const revertReason2 = await getOptimismRevertReason({tx: depositTx, provider: l2RpcProvider });
   
-  if (revertReason) {
-    console.log(revertReason);
-  }
+  //if (revertReason2) {
+  //  console.log(revertReason2);
+  //}
 
   await depositTx.wait();
 
@@ -178,11 +194,11 @@ async function main() {
   // withdrawing DAI from L1_Pool
   console.log("Pool Withdrawal (L2->L1->L2) ...");
   const withdrawTx = await L2_Pool.connect(l2Wallet).withdraw(1234, { gasLimit: 8900000, gasPrice: 0});
-  revertReason = await getOptimismRevertReason({tx: withdrawTx, provider: l2RpcProvider });
+  //const revertReason3 = await getOptimismRevertReason({tx: withdrawTx, provider: l2RpcProvider });
   
-  if (revertReason) {
-    console.log(revertReason);
-  }
+  //if (revertReason3) {
+  //  console.log(revertReason3);
+  //}
 
   await withdrawTx.wait();
 
