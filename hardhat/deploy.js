@@ -142,6 +142,7 @@ async function main() {
   )
   await tx0.wait()
 
+  /*
   // Initial balances.
   console.log(`Balance on L1: ${await L1_mockDAI.balanceOf(l1Wallet.address)}`) // 1234
   console.log(`Balance on L2: ${await L2_oDAI.balanceOf(l1Wallet.address)}`) // 0
@@ -183,13 +184,11 @@ async function main() {
 
   await depositTx.wait();
 
-
   console.log(" waiting for Pool deposit to be relayed to L1 ...")
   const [depositHash] = await watcher.getMessageHashesFromL2Tx(depositTx.hash);
   await watcher.getL1TransactionReceipt(depositHash);
 
   console.log("Balance of DAI in L1_Pool: ", `${await L1_mockDAI.balanceOf(L1_Pool.address)}`);
-  console.log("Balance in L2_Pool: ", `${await L2_Pool.balanceOf(l2Wallet.address)}`);
   console.log("Total assets in yearn vault:" , (await L1_YearnVault.totalAssets()).toString());
 
 
@@ -210,9 +209,8 @@ async function main() {
   await watcher.getL1TransactionReceipt(withdrawHash)
 
   console.log(`oDAI in L2 wallet ${await L2_oDAI.balanceOf(l2Wallet.address)}`);
-  console.log("Balance in L2_Pool: ", `${await L2_Pool.balanceOf(l2Wallet.address)}`);
   console.log("Total assets in yearn vault:" , (await L1_YearnVault.totalAssets()).toString());
-  
+  */
 
 
 
