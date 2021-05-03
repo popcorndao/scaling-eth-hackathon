@@ -1,14 +1,16 @@
 import type { Contract } from "@ethersproject/contracts";
 import type { Dispatch } from "react";
 import toast from "react-hot-toast";
+import type { GasSettings } from "src/interfaces/interfaces";
 
 export default async function approveSpending(
   erc20: Contract,
-  spender:string,
+  spender: string,
   spenderAddress: string,
-  setWait: Dispatch<boolean>
+  setWait: Dispatch<boolean>,
+  gasSettings?: GasSettings
 ): Promise<void> {
-  const approvalTx = await erc20.approve(spenderAddress, 999999);
+  const approvalTx = await erc20.approve(spenderAddress, 999999, gasSettings);
   const awaitApproval = approvalTx.wait();
   toast.promise(
     awaitApproval,

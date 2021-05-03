@@ -62,28 +62,28 @@ export default function Layer1(): JSX.Element {
     //Run example.js in hardhat first and include the printed addresses
     setL1Dai(
       new Contract(
-        "0x1429859428C0aBc9C2C47C8Ee9FBaf82cFA0F20f",
+        "0xc351628EB244ec633d5f21fBD6621e1a683B1181",
         mockERC20.abi,
         library?.getSigner()
       )
     );
     setL2Dai(
       new Contract(
-        "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82",
+        "0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0",
         mockL2ERC20.abi,
         l2Provider?.getSigner()
       )
     );
     setL2Pool(
       new Contract(
-        "0x9A676e781A523b5d0C0e43731313A708CB607508",
+        "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82",
         l2_Pool.abi,
         l2Provider?.getSigner()
       )
     );
     setL1TokenGateway(
       new Contract(
-        "0x922D6956C99E12DFeB3224DEA977D0939758A1Fe",
+        "0x1429859428C0aBc9C2C47C8Ee9FBaf82cFA0F20f",
         l1_ERC20Gateway.abi,
         library?.getSigner()
       )
@@ -116,9 +116,15 @@ export default function Layer1(): JSX.Element {
     }
   }, [account, l1Dai, l2Dai, l2Pool, wait]);
 
+  useEffect(() => {
+    if (error) {
+      setTimeout(() => setError(null), 5000);
+    }
+  }, [error]);
+
   async function moveFundsFromL1ToL2(amount: number): Promise<void> {
     setWait(true);
-    if (amount > balances.l2Dai) {
+    if (amount > balances.l1Dai) {
       setError("You dont have enough Dai for this.");
       setWait(false);
       return;

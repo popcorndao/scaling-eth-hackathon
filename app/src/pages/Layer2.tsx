@@ -21,13 +21,7 @@ const l1MessengerAddress = "0x59b670e9fA9D0A427751Af201D676719a970857b";
 const l2MessengerAddress = "0x4200000000000000000000000000000000000007";
 
 export default function Layer2(): JSX.Element {
-  const {
-    activateBrowserWallet,
-    account,
-    chainId,
-    library,
-    active,
-  } = useEthers();
+  const { account, chainId, library } = useEthers();
   const [l1Dai, setL1Dai] = useState<Contract>();
   const [l2Dai, setL2Dai] = useState<Contract>();
   const [l2Pool, setL2Pool] = useState<Contract>();
@@ -69,21 +63,21 @@ export default function Layer2(): JSX.Element {
     //Run example.js in hardhat first and include the printed addresses
     setL1Dai(
       new Contract(
-        "0x1429859428C0aBc9C2C47C8Ee9FBaf82cFA0F20f",
+        "0xc351628EB244ec633d5f21fBD6621e1a683B1181",
         mockERC20.abi,
         l1Provider?.getSigner()
       )
     );
     setL2Dai(
       new Contract(
-        "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82",
+        "0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0",
         mockL2ERC20.abi,
         library?.getSigner()
       )
     );
     setL2Pool(
       new Contract(
-        "0x9A676e781A523b5d0C0e43731313A708CB607508",
+        "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82",
         l2_Pool.abi,
         library?.getSigner()
       )
@@ -149,7 +143,10 @@ export default function Layer2(): JSX.Element {
       return;
     }
     if (l2PoolAllowance < amount) {
-      await approveSpending(l2Dai, "L2 Pool", l2Pool.address, setWait);
+      await approveSpending(l2Dai, "L2 Pool", l2Pool.address, setWait, {
+        gasLimit: 8900000,
+        gasPrice: 0,
+      });
     }
     const depositTx = await l2Pool.deposit(amount, {
       gasLimit: 8900000,

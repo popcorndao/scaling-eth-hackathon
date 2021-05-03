@@ -9,3 +9,8 @@ export interface ToastMessage{
   success:string;
   error:string;
 }
+
+export interface GasSettings{
+  gasLimit:number;
+  gasPrice:number;
+}
