@@ -53,7 +53,6 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
   CurveDepositZap public curveDepositZap;
   OVM_L1ERC20Gateway public L1_ERC20Gateway;
   address public L2_Pool;
-  address public rewardsManager;
   uint256 public pendingDeposits;
   uint256 constant YEARN_PRECISION = 10e17;
   uint256 public testValue = 0;
