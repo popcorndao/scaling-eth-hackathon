@@ -1,0 +1,28 @@
+{
+  "name": "scaling-eth-hackthon",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "start": "yarn lerna run start",
+    "build": "yarn lerna run --parallel build",
+    "pretify": "prettier --write ."
+  },
+  "dependencies": {
+    "yarn": "^1.22.10",
+    "lerna": "3.22.1",
+    "typescript": "^4.1.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.10.3",
+    "babel-plugin-module-resolver": "4.0.0",
+    "prettier": "^2.0.5",
+    "tsconfig-paths": "3.9.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "license": "MIT"
+}
