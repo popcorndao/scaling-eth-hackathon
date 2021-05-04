@@ -1,5 +1,5 @@
 {
-  "name": "scaling-eth-hackthon",
+  "name": "@scaling-eth-hackthon/workspace",
   "private": true,
   "workspaces": [
     "packages/*"

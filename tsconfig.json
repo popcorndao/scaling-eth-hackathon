@@ -1,0 +1,35 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "baseUrl": ".",
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "noEmit": true,
+    "noImplicitAny": false,
+    "noImplicitReturns": false,
+    "noImplicitThis": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "preserveConstEnums": true,
+    "removeComments": false,
+    "strict": false,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "target": "es5",
+    "downlevelIteration": true,
+    "lib": ["dom", "es2017"],
+    "paths": {
+      "@scaling-eth-hackathon/app": ["../app/src"],
+      "@scaling-eth-hackathon/app/*": ["../app/src/*"],
+      "@scaling-eth-hackathon/contracts": ["../contracts/src"],
+      "@scaling-eth-hackathon/contracts/*": ["../contracts/src/*"],
+    }
+  }
+}

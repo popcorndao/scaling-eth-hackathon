@@ -10,7 +10,11 @@ export default async function approveSpending(
   setWait: Dispatch<boolean>,
   gasSettings?: GasSettings
 ): Promise<void> {
-  const approvalTx = await erc20.approve(spenderAddress, 999999, gasSettings);
+  const approvalTx = await erc20.approve(
+    spenderAddress,
+    999999,
+    gasSettings ? gasSettings : null
+  );
   const awaitApproval = approvalTx.wait();
   toast.promise(
     awaitApproval,
