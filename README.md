@@ -51,28 +51,38 @@ docker-compose build
 docker-compose up
 ```
 
-Now run the example file:
+Now run the deploy script:
 
 ```sh
-node ./example.js
+node ./deploy.js
 ```
 
-If everything goes well, you should see the following:
+If everything goes well, you should see something like the following:
 
 ```text
-Deploying L1 ERC20...
+Deploying L1 mockDAI...
+L1_mockDAI address:  0x99bbA657f2BbC93c02D617f8bA121cB8Fc104Acf
+Deploying L1_CurveDepositZap ...
+L1_CurveDepositZap address:  0x0E801D84Fa97b50751Dbf25036d067dCf18858bF
+Deploying L1_MockYearnVault ...
+L1_YearnVault address:  0x8f86403A4DE0BB5791fa46B8e795C547942fE4Cf
 Deploying L2 ERC20...
+L2_oDAI address:  0x5FbDB2315678afecb367f032d93F642f64180aa3
 Deploying L1 ERC20 Gateway...
+L1_ERC20Gateway address:  0x9d4454B023096f34B160D6B654540c56A1F81688
+Deploying L1_Pool ...
+L1_Pool address:  0x5eb3Bc0a489C5A8288765d2336659EbCA68FCd00
+Deploying L2_Pool ...
+L2_Pool address:  0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+Setting L2_Pool address on L1_Pool ...
+L2 Pool address on L1 Pool set to: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
 Initializing L2 ERC20...
-Balance on L1: 1234
-Balance on L2: 0
-Approving tokens for ERC20 gateway...
-Depositing tokens into L2 ERC20...
-Waiting for deposit to be relayed to L2...
-Balance on L1: 0
-Balance on L2: 1234
-Withdrawing tokens back to L1 ERC20...
-Waiting for withdrawal to be relayed to L1...
-Balance on L1: 1234
-Balance on L2: 0
+```
+
+You now need to copy the L1_mockDAI, L2_oDAI, L1_ERC20Gateway and L2_Pool addresses into the .env file.
+
+Now run the following to start the frontend and you are ready.
+
+```sh
+yarn lerna start --parallel
 ```

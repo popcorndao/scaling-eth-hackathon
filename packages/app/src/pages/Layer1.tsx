@@ -62,28 +62,28 @@ export default function Layer1(): JSX.Element {
     //Run example.js in hardhat first and include the printed addresses
     setL1Dai(
       new Contract(
-        "0x99bbA657f2BbC93c02D617f8bA121cB8Fc104Acf",
+        process.env.L1_DAI_ADDRESS,
         mockERC20.abi,
         library?.getSigner()
       )
     );
     setL2Dai(
       new Contract(
-        "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+        process.env.L2_DAI_ADDRESS,
         mockL2ERC20.abi,
         l2Provider?.getSigner()
       )
     );
     setL2Pool(
       new Contract(
-        "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+        process.env.L2_POOL_ADDRESS,
         l2_Pool.abi,
         l2Provider?.getSigner()
       )
     );
     setL1TokenGateway(
       new Contract(
-        "0x9d4454B023096f34B160D6B654540c56A1F81688",
+        process.env.L1_TOKEN_GATEWAY_ADDRESS,
         l1_ERC20Gateway.abi,
         library?.getSigner()
       )
