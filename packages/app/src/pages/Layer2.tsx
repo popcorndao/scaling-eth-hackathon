@@ -4,6 +4,7 @@ import { JsonRpcProvider } from "@ethersproject/providers";
 import { useEthers } from "@usedapp/core";
 import { useEffect, useState } from "react";
 import { Toaster } from "react-hot-toast";
+import env from "react-dotenv";
 import BridgeInterface from "src/components/BridgeInterface";
 import Navbar from "src/components/Navbar";
 import SwitchNetworkAlert from "src/components/SwitchNetworkAlert";
@@ -63,21 +64,21 @@ export default function Layer2(): JSX.Element {
     //Run example.js in hardhat first and include the printed addresses
     setL1Dai(
       new Contract(
-        process.env.L1_DAI_ADDRESS,
+        env.L1_DAI_ADDRESS,
         mockERC20.abi,
         l1Provider?.getSigner()
       )
     );
     setL2Dai(
       new Contract(
-        process.env.L2_DAI_ADDRESS,
+        env.L2_DAI_ADDRESS,
         mockL2ERC20.abi,
         library?.getSigner()
       )
     );
     setL2Pool(
       new Contract(
-        process.env.L2_POOL_ADDRESS,
+        env.L2_POOL_ADDRESS,
         l2_Pool.abi,
         library?.getSigner()
       )

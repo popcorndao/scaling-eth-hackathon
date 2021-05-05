@@ -3,6 +3,7 @@ import { Contract } from "@ethersproject/contracts";
 import { JsonRpcProvider } from "@ethersproject/providers";
 import { useEthers } from "@usedapp/core";
 import { useEffect, useState } from "react";
+import env from "react-dotenv";
 import { Toaster } from "react-hot-toast";
 import BridgeInterface from "src/components/BridgeInterface";
 import Navbar from "src/components/Navbar";
@@ -61,29 +62,17 @@ export default function Layer1(): JSX.Element {
     );
     //Run example.js in hardhat first and include the printed addresses
     setL1Dai(
-      new Contract(
-        process.env.L1_DAI_ADDRESS,
-        mockERC20.abi,
-        library?.getSigner()
-      )
+      new Contract(env.L1_DAI_ADDRESS, mockERC20.abi, library?.getSigner())
     );
     setL2Dai(
-      new Contract(
-        process.env.L2_DAI_ADDRESS,
-        mockL2ERC20.abi,
-        l2Provider?.getSigner()
-      )
+      new Contract(env.L2_DAI_ADDRESS, mockL2ERC20.abi, l2Provider?.getSigner())
     );
     setL2Pool(
-      new Contract(
-        process.env.L2_POOL_ADDRESS,
-        l2_Pool.abi,
-        l2Provider?.getSigner()
-      )
+      new Contract(env.L2_POOL_ADDRESS, l2_Pool.abi, l2Provider?.getSigner())
     );
     setL1TokenGateway(
       new Contract(
-        process.env.L1_TOKEN_GATEWAY_ADDRESS,
+        env.L1_TOKEN_GATEWAY_ADDRESS,
         l1_ERC20Gateway.abi,
         library?.getSigner()
       )
