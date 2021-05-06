@@ -8,7 +8,7 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "jsx": "preserve",
-    "module": "esnext",
+    "module": "commonjs",
     "moduleResolution": "node",
     "noEmit": true,
     "noImplicitAny": false,
@@ -29,7 +29,7 @@
       "@scaling-eth-hackathon/app": ["../app/src"],
       "@scaling-eth-hackathon/app/*": ["../app/src/*"],
       "@scaling-eth-hackathon/contracts": ["../contracts/src"],
-      "@scaling-eth-hackathon/contracts/*": ["../contracts/src/*"],
+      "@scaling-eth-hackathon/contracts/*": ["../contracts/src/*"]
     }
   }
 }
