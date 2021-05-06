@@ -2,13 +2,17 @@ import { expect } from "chai";
 import { ethers, waffle } from "hardhat";
 import { parseEther, parseUnits } from "ethers/lib/utils";
 import { BigNumber } from "ethers";
+import {deployMockContract} from '@ethereum-waffle/mock-contract';
 
 const provider = waffle.provider;
 
 describe('L1_Pool', function () {
   const DepositorInitial = parseEther("10000000");
-  let MockERC20, MockYearnV2Vault, MockCurveDepositZap, L1_Pool;
+  let MockERC20, MockYearnV2Vault, MockCurveDepositZap, L1_Pool, L1_ERC20_Gateway;
   let owner, depositor, depositor1, depositor2, depositor3, depositor4, depositor5, rewardsManager;
+
+  const l1CrossDomainMessengerAddress = "0x59b670e9fA9D0A427751Af201D676719a970857b";
+  const l2CrossDomainMessengerAddress = "0x4200000000000000000000000000000000000007";
 
   beforeEach(async function () {
     [owner, depositor, depositor1, depositor2, depositor3, depositor4, depositor5, rewardsManager] = await ethers.getSigners();
@@ -19,36 +23,47 @@ describe('L1_Pool', function () {
     await this.mockDai.mint(depositor1.address, DepositorInitial);
     await this.mockDai.mint(depositor2.address, DepositorInitial);
 
-    this.mockCrvUSDX = await MockERC20.deploy("crvUSDX", "crvUSDX");
-
-    MockYearnV2Vault = await ethers.getContractFactory("MockYearnV2Vault");
-    this.mockYearnVault = await MockYearnV2Vault.deploy(this.mockCrvUSDX.address);
 
     MockCurveDepositZap = await ethers.getContractFactory("MockCurveDepositZap");
-    this.mockCurveDepositZap = await MockCurveDepositZap.deploy(this.mockCrvUSDX.address, this.mockDai.address);
+    this.mockCurveDepositZap = await MockCurveDepositZap.deploy(this.mockDai.address);
+
+    MockYearnV2Vault = await ethers.getContractFactory("MockYearnV2Vault");
+    this.mockYearnVault = await MockYearnV2Vault.deploy(this.mockCurveDepositZap.address);
+
+    const L2_DepositedERC20 = await ethers.getContractFactory("L2DepositedERC20");
+    this.L2_oDAI = await L2_DepositedERC20.deploy(  l2CrossDomainMessengerAddress,
+      'oDAI')
+
+
+    L1_ERC20_Gateway = await ethers.getContractFactory('Mock_OVM_L1ERC20Gateway');
+    this.L1_ERC20_Gateway =  await deployMockContract(
+      owner, L1_ERC20_Gateway.interface.format()
+    );
 
     L1_Pool = await ethers.getContractFactory("L1_Pool");
     this.L1_Pool = await L1_Pool.deploy(
       this.mockDai.address,
       this.mockYearnVault.address,
       this.mockCurveDepositZap.address,
-      rewardsManager.address,
+      l1CrossDomainMessengerAddress, // l1CrossDomainMessenger
+      this.L1_ERC20_Gateway.address
+      
     );
     await this.L1_Pool.deployed();
   });
 
   it("should be constructed with correct addresses", async function () {
     expect(await this.L1_Pool.dai()).to.equal(this.mockDai.address);
+    expect(await this.L1_Pool.yearnVault()).to.equal(this.mockYearnVault.address);
     expect(await this.L1_Pool.curveDepositZap()).to.equal(this.mockCurveDepositZap.address);
-    expect(await this.L1_Pool.rewardsManager()).to.equal(rewardsManager.address);
   });
 
   it("has a token name", async function () {
-    expect(await this.L1_Pool.name()).to.equal("Popcorn DAI L1_Pool");
+    expect(await this.L1_Pool.name()).to.equal("Popcorn DAI L1_YieldOptimizerPool");
   });
 
   it("has a token symbol", async function () {
-    expect(await this.L1_Pool.symbol()).to.equal("L1_popDAI");
+    expect(await this.L1_Pool.symbol()).to.equal("L1_popDAI_LP");
   });
 
   it("uses 18 decimals", async function () {
@@ -56,48 +71,58 @@ describe('L1_Pool', function () {
   });
 
   describe("deposits", async function () {
-    xit("accepts DAI deposits", async function () {
-      let amount = parseEther("10");
-      await this.mockDai.connect(depositor).approve(this.L1_Pool.address, amount);
-      await this.L1_Pool.connect(depositor).deposit(amount);
-      expect(await this.mockDai.connect(depositor).balanceOf(this.L1_Pool.address)).to.equal(amount);
+
+    it("doesn't deposit anything if contract doesn't have tokens", async function () {
+      await expect(this.L1_Pool.deposit()).to.be.revertedWith("not enough balance");
     });
 
-    it("reverts unapproved deposits", async function () {
-      let amount = parseEther("10");
-      await expect(this.L1_Pool.connect(depositor).deposit(amount)).to.be.revertedWith("transfer amount exceeds allowance");
-    });
-
-    it("returns popDAI to depositor", async function () {
-      let amount = parseEther("23");
-      await this.mockDai.connect(depositor).approve(this.L1_Pool.address, amount);
-      await this.L1_Pool.connect(depositor).deposit(amount);
-      expect(await this.L1_Pool.connect(depositor).balanceOf(depositor.address)).to.equal(amount);
-    });
-
-    xit("deposits DAI to the USDX Curve L1_Pool in exchange for crvUSDX", async function () {
-      let amount = parseEther("31");
-      await this.mockDai.connect(depositor).approve(this.L1_Pool.address, amount);
-      await this.L1_Pool.connect(depositor).deposit(amount);
-      expect(await this.mockCrvUSDX.connect(depositor).balanceOf(this.L1_Pool.address)).to.equal(amount);
-    });
 
     it("deposits crvUSDX to Yearn in exchange for yvUSDX", async function () {
-      let amount = parseEther("2000");
+      const amount = parseEther("2000");
       await this.mockDai.connect(depositor).approve(this.L1_Pool.address, amount);
-      await this.L1_Pool.connect(depositor).deposit(amount);
-      expect(await this.mockYearnVault.connect(depositor).balanceOf(this.L1_Pool.address)).to.equal(parseEther("2000"));
+      await this.mockDai.connect(depositor).transfer(this.L1_Pool.address, amount);
+      expect(await this.mockDai.balanceOf(this.L1_Pool.address)).to.equal(parseEther("2000"));
+      await this.L1_Pool.deposit();
+      expect(await this.mockYearnVault.balanceOf(this.L1_Pool.address)).to.equal(parseEther("2000"));
     });
   });
 
   describe("calculating total assets", async function () {
     it("total assets is Yearn balance * Yearn price per share - slippage from conversion to DAI", async function () {
-      let amount = parseEther("3700");
+      const amount = parseEther("3700");
       await this.mockDai.connect(depositor).approve(this.L1_Pool.address, amount);
-      await this.L1_Pool.connect(depositor).deposit(amount);
-      expect(await this.L1_Pool.totalValue()).to.equal(parseUnits("3696300000000000000000", "wei"));
+      await this.mockDai.connect(depositor).transfer(this.L1_Pool.address, amount);
+      await this.L1_Pool.connect(depositor).deposit();
+      expect(await this.L1_Pool.totalValue()).to.equal(parseEther("3696.3"));
     });
   });
+
+  describe("withdrawals", async function () {
+    it("should revert withdraw if not from L2 crossdomain account", async function() {
+      const amount = parseEther("2000");
+      await this.mockDai.connect(depositor).approve(this.L1_Pool.address, amount);
+      await this.mockDai.connect(depositor).transfer(this.L1_Pool.address, amount);
+      await this.L1_Pool.deposit();
+      await expect(this.L1_Pool.withdraw(parseEther('2000'), depositor.address)).to.be.revertedWith("OVM_XCHAIN: messenger contract unauthenticated");
+    });
+
+    /** 
+     * todo: must send from layer 2
+     */
+    /*
+    it("should withdraw to erc20 gateway contract", async function() {
+      const amount = parseEther("2000");
+      await this.mockDai.connect(depositor).approve(this.L1_Pool.address, amount);
+      await this.mockDai.connect(depositor).transfer(this.L1_Pool.address, amount);
+      await this.L1_Pool.deposit();
+      await this.L1_Pool.connect(owner).setL2Pool(depositor.address);
+      await this.L1_Pool.connect(depositor).withdraw(parseEther('2000'), depositor.address);
+      expect(await this.L1_ERC20_Gateway.balanceOf(depositor.address)).to.equal(50)
+    });
+    */
+  });
+
+  /**
 
   describe("L1_Pool token accounting", async function () {
     it("depositor earns tokens equal to deposit when L1_Pool is empty", async function () {
@@ -181,10 +206,14 @@ describe('L1_Pool', function () {
         deposits.reduce(
         (sum, deposit) => sum.add(deposit), parseEther('0')) // 20,000 - this should be curvetokens
        );
+     
+       **/
 
       /**
        * many moons later, the underlying has doubled!
        */
+
+      /**
       this.mockYearnVault.setTotalAssets(parseEther("40000"));
 
       let balanceBefore = await this.mockDai.balanceOf(depositor1.address);
@@ -248,5 +277,5 @@ describe('L1_Pool', function () {
       expect(await this.L1_Pool.valueFor(parseEther("1"))).to.equal(parseEther("1.998"));
     });
   });
-
+**/
 });
