@@ -24,28 +24,28 @@ export default function useContracts(): Contract[] {
         chainId === 31337 ? l2Provider?.getSigner() : library?.getSigner();
       setL1Dai(
         new Contract(
-          "0x809d550fca64d94Bd9F66E60752A544199cfAC3D",
+          process.env.REACT_APP_L1_DAI_ADDRESS,
           mockERC20.abi,
           l1Signer
         )
       );
       setL2Dai(
         new Contract(
-          "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
+          process.env.REACT_APP_L2_DAI_ADDRESS,
           mockL2ERC20.abi,
           l2Signer
         )
       );
       setL2Pool(
         new Contract(
-          "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+          process.env.REACT_APP_L2_POOL_ADDRESS, 
           l2_Pool.abi,
           l2Signer
         )
       );
       setL1TokenGateway(
         new Contract(
-          "0x5f3f1dBD7B74C6B46e8c44f98792A1dAf8d69154",
+          process.env.REACT_APP_L1_TOKEN_GATEWAY_ADDRESS,
           l1_ERC20Gateway.abi,
           l1Signer
         )
