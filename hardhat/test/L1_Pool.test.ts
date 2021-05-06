@@ -9,13 +9,13 @@ const provider = waffle.provider;
 describe('L1_Pool', function () {
   const DepositorInitial = parseEther("10000000");
   let MockERC20, MockYearnV2Vault, MockCurveDepositZap, L1_Pool, L1_ERC20_Gateway;
-  let owner, depositor, depositor1, depositor2, depositor3, depositor4, depositor5, rewardsManager;
+  let owner, depositor, depositor1, depositor2, depositor3, depositor4, depositor5, rewardsManager, poolTokenEscrow;
 
   const l1CrossDomainMessengerAddress = "0x59b670e9fA9D0A427751Af201D676719a970857b";
   const l2CrossDomainMessengerAddress = "0x4200000000000000000000000000000000000007";
 
   beforeEach(async function () {
-    [owner, depositor, depositor1, depositor2, depositor3, depositor4, depositor5, rewardsManager] = await ethers.getSigners();
+    [owner, depositor, depositor1, depositor2, depositor3, depositor4, depositor5, rewardsManager, poolTokenEscrow] = await ethers.getSigners();
 
     MockERC20 = await ethers.getContractFactory("MockERC20");
     this.mockDai = await MockERC20.deploy("DAI", "DAI");
@@ -46,8 +46,9 @@ describe('L1_Pool', function () {
       this.mockYearnVault.address,
       this.mockCurveDepositZap.address,
       l1CrossDomainMessengerAddress, // l1CrossDomainMessenger
-      this.L1_ERC20_Gateway.address
-      
+      this.L1_ERC20_Gateway.address,
+      rewardsManager.address,
+      poolTokenEscrow.address
     );
     await this.L1_Pool.deployed();
   });

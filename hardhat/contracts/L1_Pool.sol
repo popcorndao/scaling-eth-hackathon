@@ -8,6 +8,8 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
 import "hardhat/console.sol";
 
 /* Library Imports */
@@ -41,144 +43,317 @@ interface OVM_L1ERC20Gateway {
   function depositTo(address _address, uint256 amount) external;
 }
 
+interface PoolTokenEscrow {}
 
-contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled {
+contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled, ReentrancyGuard {
 
   using SafeMath for uint256;
   using SafeERC20 for IERC20;
+  using SafeERC20 for CrvLPToken;
+  using SafeERC20 for YearnVault;
 
   IERC20 public dai;
   CrvLPToken public crvLPToken;
   YearnVault public yearnVault;
   CurveDepositZap public curveDepositZap;
   OVM_L1ERC20Gateway public L1_ERC20Gateway;
+  PoolTokenEscrow public poolTokenEscrow;
+
+  address public rewardsManager;
+
   address public L2_Pool;
   uint256 public pendingDeposits;
-  uint256 constant YEARN_PRECISION = 10e17;
-  uint256 public testValue = 0;
+  uint256 constant BPS_DENOMINATOR = 10_000;
+  uint256 constant SECONDS_PER_YEAR = 31_556_952;
+  uint256 public withdrawalFee = 50;
+  uint256 public managementFee = 200;
+  uint256 public performanceFee = 2000;
+  uint256 public poolTokenHWM = 1e18;
+  uint256 public feesUpdatedAt;
 
-  event Deposit(address from, uint256 deposit, uint256 poolTokens);
-  event Withdrawal(address to, uint256 amount);
+
+  event Deposit(address indexed from, uint256 deposit, uint256 poolTokens);
+  event Withdrawal(address indexed to, uint256 amount);
+  event WithdrawalFee(address indexed to, uint256 amount);
+  event PerformanceFee(uint256 amount);
+  event ManagementFee(uint256 amount);
+  event WithdrawalFeeChanged(uint256 previousBps, uint256 newBps);
+  event ManagementFeeChanged(uint256 previousBps, uint256 newBps);
+  event PerformanceFeeChanged(uint256 previousBps, uint256 newBps);
 
   constructor(
     IERC20 dai_,
     YearnVault yearnVault_,
     CurveDepositZap curveDepositZap_,
-    address _l1CrossDomainMessenger,
-    OVM_L1ERC20Gateway _l1Erc20Gateway
+    address l1CrossDomainMessenger_,
+    OVM_L1ERC20Gateway l1Erc20Gateway_,
+    address rewardsManager_,
+    PoolTokenEscrow poolTokenEscrow_
   ) ERC20("Popcorn DAI L1_YieldOptimizerPool", "L1_popDAI_LP")
-    OVM_CrossDomainEnabled(_l1CrossDomainMessenger) {
+    OVM_CrossDomainEnabled(l1CrossDomainMessenger_) {
     dai = dai_;
     yearnVault = yearnVault_;
     crvLPToken = CrvLPToken(yearnVault.token());
     curveDepositZap = curveDepositZap_;
-    L1_ERC20Gateway = _l1Erc20Gateway;
+    L1_ERC20Gateway = l1Erc20Gateway_;
+    rewardsManager = rewardsManager_;
+    poolTokenEscrow = poolTokenEscrow_;
+    feesUpdatedAt = block.timestamp;
   }
 
-  function setL2Pool(address _address) public onlyOwner {
-    L2_Pool = _address;
+  function setL2Pool(address address_) public onlyOwner {
+    L2_Pool = address_;
   }
 
-  function deposit() public {
+  /**
+  * this function will deposit the DAI balance held by this contract into a yield optimizing strategy.
+  * this assumes that an L2 withdrawal (moving DAI from L2 to L1) has been made and sent to this contract
+  */
+  function deposit() public returns (uint256) {
+    _takeFees();
+
     uint256 currentBalance = dai.balanceOf(address(this));
     require(currentBalance > 0, "not enough balance");
+
+    uint256 poolTokens = _issuePoolTokens(address(poolTokenEscrow), currentBalance);
+    emit Deposit(msg.sender, currentBalance, poolTokens);
+    
     uint256 crvLPTokenAmount = _sendToCurve(currentBalance);
     _sendToYearn(crvLPTokenAmount);
+    _reportPoolTokenHWM();
+    
+    return balanceOf(address(poolTokenEscrow));
+
   }
 
-  function withdraw(uint256 amount, address _address)
+  function withdraw(uint256 amount, address address_)
     external
     onlyFromCrossDomainAccount(L2_Pool)
-    returns (uint256)
+    returns (uint256, uint256)
   {
-    uint256 yvShareWithdrawal = _yearnSharesFor(amount);
-    uint256 crvLPTokenAmount = _withdrawFromYearn(yvShareWithdrawal);
-    uint256 daiAmount = _withdrawFromCurve(crvLPTokenAmount);
+    require(amount <= balanceOf(address(poolTokenEscrow)), "Insufficient pool token balance");
+    _takeFees();
 
-    dai.approve(address(L1_ERC20Gateway), daiAmount);
-    L1_ERC20Gateway.depositTo(_address, daiAmount);
+    uint256 daiAmount = _withdrawPoolTokens(address(poolTokenEscrow), amount);
+    uint256 fee = _calculateWithdrawalFee(daiAmount);
+    uint256 withdrawal = daiAmount.sub(fee);
 
-    return daiAmount;
+    _transferWithdrawalFee(fee);
+    _transferWithdrawal(address_, withdrawal);
+
+    _reportPoolTokenHWM();
+    return (withdrawal, fee);
   }
 
-  function _yearnSharesFor(uint256 poolTokenAmount) internal view returns (uint256) {
-    uint256 yearnBalance = yearnVault.balanceOf(address(this));
-    return yearnBalance * _poolShareFor(poolTokenAmount) / YEARN_PRECISION;
+  function takeFees() nonReentrant external {
+    _takeFees();
+    _reportPoolTokenHWM();
   }
 
-  function _poolShareFor(uint256 poolTokenAmount) internal view returns (uint256) {
-    if (this.totalSupply() ==  0) {
-      return 1 * YEARN_PRECISION;
-    }
-    return poolTokenAmount * YEARN_PRECISION / this.totalSupply();
+  function setWithdrawalFee(uint256 withdrawalFee_) external onlyOwner {
+    require(withdrawalFee != withdrawalFee_, "Same withdrawalFee");
+    uint256 _previousWithdrawalFee = withdrawalFee;
+    withdrawalFee = withdrawalFee_;
+    emit WithdrawalFeeChanged(_previousWithdrawalFee, withdrawalFee);
   }
 
-  function _sendToCurve(uint256 amount) internal returns (uint256 crvLPTokenAmount) {
-    dai.approve(address(curveDepositZap), amount);
-    uint256[4] memory curveDepositAmounts = [
-      0,      // USDX
-      amount, // DAI
-      0,      // USDC
-      0       // USDT
-    ];
-    return curveDepositZap.add_liquidity(curveDepositAmounts, 0);
+  function setManagementFee(uint256 managementFee_) external onlyOwner {
+    require(managementFee != managementFee_, "Same managementFee");
+    uint256 _previousManagementFee = managementFee;
+    managementFee = managementFee_;
+    emit ManagementFeeChanged(_previousManagementFee, managementFee);
   }
 
-  function _withdrawFromYearn(uint256 yvShares) internal returns (uint256) {
-    return yearnVault.withdraw(yvShares);
+  function setPerformanceFee(uint256 performanceFee_) external onlyOwner {
+    require(performanceFee != performanceFee_, "Same performanceFee");
+    uint256 _previousPerformanceFee = performanceFee;
+    performanceFee = performanceFee_;
+    emit PerformanceFeeChanged(_previousPerformanceFee, performanceFee);
   }
 
-  function _withdrawFromCurve(uint256 crvLPTokenAmount) internal returns (uint256) {
-    crvLPToken.approve(address(curveDepositZap), crvLPTokenAmount);
-    return curveDepositZap.remove_liquidity_one_coin(crvLPTokenAmount, 1, 0);
+  function withdrawAccruedFees() external onlyOwner {
+    uint256 tokenBalance = balanceOf(address(this));
+    uint256 daiAmount = _withdrawPoolTokens(address(this), tokenBalance);
+    _transferDai(rewardsManager, daiAmount);
   }
 
-  function _sendToYearn(uint256 amount) internal returns (uint256 yvShareAmount) {
-    crvLPToken.approve(address(yearnVault), amount);
-    return yearnVault.deposit(amount);
+  function pricePerPoolToken() public view returns (uint256) {
+    return valueFor(10**decimals());
   }
 
-  function _issuePoolTokens(address to, uint256 amount) internal returns (uint256 issuedAmount) {
-    _mint(to, amount);
-    return amount;
+  function totalValue() public view returns (uint256) {
+    return _totalValue();
+  }
+  function valueFor(uint256 poolTokens) public view returns (uint256) {
+    uint256 yvShares = _yearnSharesFor(poolTokens);
+    uint256 shareValue = _yearnShareValue(yvShares);
+    uint256 fee = _calculateWithdrawalFee(shareValue);
+    return shareValue.sub(fee);
   }
 
-  function _burnPoolTokens(address from, uint256 amount) internal returns (uint256 burnedAmount) {
-    _burn(from, amount);
-    return amount;
-  }
-
-  function _transferWithdrawal(uint256 withdrawal) internal {
-    _transferDai(msg.sender, withdrawal);
-    emit Withdrawal(msg.sender, withdrawal);
-  }
-
-  function _transferDai(address to, uint256 amount) internal {
-    dai.approve(address(this), amount);
-    dai.transferFrom(address(this), to, amount);
-  }
 
   function _totalValue() internal view returns (uint256) {
     uint256 yvShareBalance = yearnVault.balanceOf(address(this));
     return _yearnShareValue(yvShareBalance);
   }
 
-  function totalValue() external view returns (uint256) {
-    return _totalValue();
+  function _reportPoolTokenHWM() internal {
+    if (pricePerPoolToken() > poolTokenHWM) {
+      poolTokenHWM = pricePerPoolToken();
+    }
   }
 
-  function poolTokenValue() external view returns (uint256) {
-    return this.valueFor(10 ** this.decimals());
+  function _issueTokensForFeeAmount(uint256 amount) internal {
+    uint256 tokens = amount.mul(pricePerPoolToken()).div(10**decimals());
+    _issuePoolTokens(address(this), tokens);
   }
 
-  function valueFor(uint256 poolTokens) external view returns (uint256) {
-    uint256 yvShares = _yearnSharesFor(poolTokens);
-    uint256 shareValue =_yearnShareValue(yvShares);
-    return shareValue;
+  function _takeManagementFee() internal {
+    uint256 period = block.timestamp.sub(feesUpdatedAt);
+    uint256 fee =
+      (managementFee.mul(totalValue()).mul(period)).div(
+        SECONDS_PER_YEAR.mul(BPS_DENOMINATOR)
+      );
+      if (fee > 0) {
+        _issueTokensForFeeAmount(fee);
+        emit ManagementFee(fee);
+      }
+  }
+
+  function _takePerformanceFee() internal {
+    int256 gain = int256(pricePerPoolToken() - poolTokenHWM);
+    if (gain > 0) {
+      uint256 changeInPricePerToken = uint256(gain);
+      uint256 fee =
+        performanceFee
+          .mul(changeInPricePerToken)
+          .mul(totalSupply())
+          .div(BPS_DENOMINATOR)
+          .div(1e18);
+      _issueTokensForFeeAmount(fee);
+      emit PerformanceFee(fee);
+    }
+  }
+
+  function _takeFees() internal {
+    _takeManagementFee();
+    _takePerformanceFee();
+    feesUpdatedAt = block.timestamp;
+  }
+
+  function _calculateWithdrawalFee(uint256 withdrawalAmount)
+    internal
+    view
+    returns (uint256)
+  {
+    return withdrawalAmount.mul(withdrawalFee).div(BPS_DENOMINATOR);
+  }
+
+  function _transferWithdrawalFee(uint256 fee) internal {
+    _transferDai(rewardsManager, fee);
+    emit WithdrawalFee(rewardsManager, fee);
+  }
+
+  function _transferWithdrawal(address address_, uint256 amount) internal {
+    dai.approve(address(L1_ERC20Gateway), amount);
+    L1_ERC20Gateway.depositTo(address_, amount);
+  }
+
+  function _transferDai(address to, uint256 amount) internal {
+    dai.safeApprove(address(this), amount);
+    dai.safeTransferFrom(address(this), to, amount);
+  }
+
+  function _poolShareFor(uint256 poolTokenAmount)
+    internal
+    view
+    returns (uint256)
+  {
+    if (totalSupply() == 0) {
+      return 1e18;
+    }
+    return poolTokenAmount.mul(1e18).div(totalSupply());
+  }
+
+  function _issuePoolTokens(address to, uint256 amount)
+    internal
+    returns (uint256)
+  {
+    _mint(to, amount);
+    return amount;
+  }
+
+
+  function _burnPoolTokens(address from, uint256 amount) internal returns (uint256 burnedAmount) {
+    _burn(from, amount);
+    return amount;
+  }
+
+  function _withdrawPoolTokens(address fromAddress, uint256 amount)
+    internal
+    returns (uint256)
+  {
+    uint256 yvShareWithdrawal = _yearnSharesFor(amount);
+    _burnPoolTokens(fromAddress, amount);
+    uint256 crvLPTokenAmount = _withdrawFromYearn(yvShareWithdrawal);
+    return _withdrawFromCurve(crvLPTokenAmount);
+  }
+
+  function _sendToCurve(uint256 amount) internal returns (uint256) {
+    dai.safeApprove(address(curveDepositZap), amount);
+    uint256[4] memory curveDepositAmounts =
+      [
+        0, // USDX
+        amount, // DAI
+        0, // USDC
+        0 // USDT
+      ];
+    return curveDepositZap.add_liquidity(curveDepositAmounts, 0);
+  }
+
+
+  function _crvBalance() internal view returns (uint256) {
+    return crvLPToken.balanceOf(address(this));
+  }
+
+  function _withdrawFromCurve(uint256 crvLPTokenAmount)
+    internal
+    returns (uint256)
+  {
+    crvLPToken.safeApprove(address(curveDepositZap), crvLPTokenAmount);
+    return curveDepositZap.remove_liquidity_one_coin(crvLPTokenAmount, 1, 0);
+  }
+
+  function _sendToYearn(uint256 amount) internal returns (uint256) {
+    crvLPToken.safeApprove(address(yearnVault), amount);
+    uint256 yearnBalanceBefore = _yearnBalance();
+    yearnVault.deposit(amount);
+    uint256 yearnBalanceAfter = _yearnBalance();
+    return yearnBalanceAfter.sub(yearnBalanceBefore);
+  }
+
+  function _yearnBalance() internal view returns (uint256) {
+    return yearnVault.balanceOf(address(this));
+  }
+
+  function _yearnSharesFor(uint256 poolTokenAmount)
+    internal
+    view
+    returns (uint256)
+  {
+    return
+      _yearnBalance().mul(_poolShareFor(poolTokenAmount)).div(1e18);
+  }
+
+  function _withdrawFromYearn(uint256 yvShares) internal returns (uint256) {
+    uint256 crvBalanceBefore = _crvBalance();
+    yearnVault.withdraw(yvShares);
+    uint256 crvBalanceAfter = _crvBalance();
+    return crvBalanceAfter.sub(crvBalanceBefore);
   }
 
   function _yearnShareValue(uint256 yvShares) internal view returns (uint256) {
-    uint256 crvLPTokens = yearnVault.pricePerShare() * yvShares / YEARN_PRECISION;
+    uint256 crvLPTokens = yearnVault.pricePerShare() * yvShares / 1e18;
     return curveDepositZap.calc_withdraw_one_coin(crvLPTokens, 1);
   }
 }
