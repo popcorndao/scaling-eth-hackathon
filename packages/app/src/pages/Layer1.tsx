@@ -12,6 +12,7 @@ import type { TokenBalances } from "src/interfaces/interfaces";
 import approveSpending from "src/utils/approveSpending";
 import watchCrossChainMessage from "src/utils/watchCrossChainMessage";
 import mockERC20 from "../abi/ERC20.json";
+import l1_ERC20Gateway from "../abi/iOVM_L1TokenGateway.json";
 import mockL2ERC20 from "../abi/L2DepositedERC20.json";
 import l2_Pool from "../abi/L2_Pool.json";
 
@@ -20,87 +21,80 @@ const l1MessengerAddress = "0x59b670e9fA9D0A427751Af201D676719a970857b";
 // L2 messenger address is always the same.
 const l2MessengerAddress = "0x4200000000000000000000000000000000000007";
 
-export default function Layer2(): JSX.Element {
+export default function Layer1(): JSX.Element {
   const { account, chainId, library } = useEthers();
   const [l1Dai, setL1Dai] = useState<Contract>();
   const [l2Dai, setL2Dai] = useState<Contract>();
   const [l2Pool, setL2Pool] = useState<Contract>();
   const [watcher, setWatcher] = useState<any>();
   const [balances, setBalances] = useState<TokenBalances>();
-  const [l2PoolAllowance, setL2PoolAllowance] = useState<number>(0);
+  const [l1TokenGateway, setL1TokenGateway] = useState<Contract>();
+  const [l1Allowance, setL1Allowance] = useState<number>(0);
   const [wait, setWait] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [networkAlert, setNetworkAlert] = useState<"layer1" | "layer2" | null>(
     null
   );
-  const l1Provider = new JsonRpcProvider("http://localhost:9545");
+  const l2Provider = new JsonRpcProvider("http://localhost:8545");
 
   useEffect(() => {
     if (chainId === undefined) {
       return;
     }
-    if (chainId !== 420) {
-      setNetworkAlert("layer2");
+    if (chainId !== 31337) {
+      setNetworkAlert("layer1");
     }
   }, [chainId]);
 
   useEffect(() => {
-    if (chainId !== 420 || !account) {
-      return;
-    }
     setWatcher(
       new Watcher({
         l1: {
-          provider: l1Provider,
+          provider: library,
           messengerAddress: l1MessengerAddress,
         },
         l2: {
-          provider: library,
+          provider: l2Provider,
           messengerAddress: l2MessengerAddress,
         },
       })
     );
     //Run example.js in hardhat first and include the printed addresses
     setL1Dai(
-      new Contract(
-        "0xc351628EB244ec633d5f21fBD6621e1a683B1181",
-        mockERC20.abi,
-        l1Provider?.getSigner()
-      )
+      new Contract(process.env.REACT_APP_L1_DAI_ADDRESS, mockERC20.abi, library?.getSigner())
     );
     setL2Dai(
-      new Contract(
-        "0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0",
-        mockL2ERC20.abi,
-        library?.getSigner()
-      )
+      new Contract(process.env.REACT_APP_L2_DAI_ADDRESS, mockL2ERC20.abi, l2Provider?.getSigner())
     );
     setL2Pool(
+      new Contract(process.env.REACT_APP_L2_POOL_ADDRESS, l2_Pool.abi, l2Provider?.getSigner())
+    );
+    setL1TokenGateway(
       new Contract(
-        "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82",
-        l2_Pool.abi,
+        process.env.REACT_APP_L1_TOKEN_GATEWAY_ADDRESS,
+        l1_ERC20Gateway.abi,
         library?.getSigner()
       )
     );
-  }, [account, chainId]);
+  }, [account]);
 
   useEffect(() => {
-    if (account && l1Dai && l2Dai && l2Pool && chainId === 420) {
+    if (account && l1Dai && l2Dai && l2Pool) {
       l1Dai.balanceOf(account).then((res) =>
         setBalances((prevState) => ({
           ...prevState,
           l1Dai: Number(res.toString()),
         }))
       );
+      l1Dai
+        .allowance(account, l1TokenGateway.address)
+        .then((res) => setL1Allowance(Number(res.toString())));
       l2Dai.balanceOf(account).then((res) =>
         setBalances((prevState) => ({
           ...prevState,
           l2Dai: Number(res.toString()),
         }))
       );
-      l2Dai
-        .allowance(account, l2Pool.address)
-        .then((res) => setL2PoolAllowance(Number(res.toString())));
       l2Pool.balanceOf(account).then((res) =>
         setBalances((prevState) => ({
           ...prevState,
@@ -108,85 +102,44 @@ export default function Layer2(): JSX.Element {
         }))
       );
     }
-  }, [account, l1Dai, l2Dai, l2Pool, chainId, wait]);
+  }, [account, l1Dai, l2Dai, l2Pool, wait]);
 
-  async function moveFundsFromL2ToL1(amount: number) {
+  useEffect(() => {
+    if (error) {
+      setTimeout(() => setError(null), 5000);
+    }
+  }, [error]);
+
+  async function moveFundsFromL1ToL2(amount: number): Promise<void> {
     setWait(true);
-    if (amount > balances.l2Dai) {
+    if (amount > balances.l1Dai) {
       setError("You dont have enough Dai for this.");
       setWait(false);
       return;
     }
-    const withdrawTx = await l2Dai.withdraw(amount, {
-      gasLimit: 800000,
-      gasPrice: 0,
-    });
-    await watchCrossChainMessage(
-      withdrawTx,
-      {
-        loading: "Withdrawing Dai to L1...",
-        success: "Withdraw Success",
-        error: "Withdraw Error",
-      },
-      watcher,
-      "L1"
-    );
-    setWait(false);
-    setNetworkAlert("layer1");
-  }
-
-  async function investInPool(amount: number): Promise<void> {
-    setWait(true);
-    if (amount > balances.l2Dai) {
-      setError("You dont have enough Dai to invest.");
-      setWait(false);
-      return;
+    if (l1Allowance < amount) {
+      await approveSpending(
+        l1Dai,
+        "Token Gateway",
+        l1TokenGateway.address,
+        setWait
+      );
     }
-    if (l2PoolAllowance < amount) {
-      await approveSpending(l2Dai, "L2 Pool", l2Pool.address, setWait, {
-        gasLimit: 8900000,
-        gasPrice: 0,
-      });
-    }
-    const depositTx = await l2Pool.deposit(amount, {
-      gasLimit: 8900000,
-      gasPrice: 0,
-    });
+    const depositTx = await l1TokenGateway
+      .deposit(amount)
+      .catch((err) => console.log(err));
     await watchCrossChainMessage(
       depositTx,
       {
-        loading: "Investing...",
-        success: "Investing Success",
-        error: "Investing Error",
+        loading: "Depositing Dai in L2...",
+        success: "Deposit Success",
+        error: "Deposit Error",
       },
       watcher,
-      "L1"
+      "L2"
     );
     setWait(false);
-  }
-
-  async function withdrawFromPool(amount: number): Promise<void> {
-    setWait(true);
-    if (amount > balances.l2PoolShare) {
-      setError("You dont have that much invested.");
-      setWait(false);
-      return;
-    }
-    const withdrawTx = await l2Pool.withdraw(amount, {
-      gasLimit: 8900000,
-      gasPrice: 0,
-    });
-    await watchCrossChainMessage(
-      withdrawTx,
-      {
-        loading: "Withdrawing from Pool...",
-        success: "Withdrawl Success",
-        error: "Withdrawl Error",
-      },
-      watcher,
-      "L1"
-    );
-    setWait(false);
+    setNetworkAlert("layer2");
   }
 
   return (
@@ -198,32 +151,18 @@ export default function Layer2(): JSX.Element {
         setNetworkAlert={setNetworkAlert}
       />
       <BridgeInterface
-        title="Token Bridge L2"
+        title="Token Bridge L1"
         infoText="ATTENTION! Always reset your account if you have send transactions on
-        L2. Metamask gets irritated with the Nonces in local for some reason."
+        L1. Metamask gets irritated with the Nonces in local for some reason."
         balances={balances}
       >
         <>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <TokenInput
-            label="Invest"
-            availableToken={balances?.l2Dai}
-            handleClick={investInPool}
-            disabled={balances?.l2Dai === 0 || wait || !account}
-            waiting={wait}
-          />
-          <TokenInput
-            label="Withdraw"
-            availableToken={balances?.l2Dai}
-            handleClick={withdrawFromPool}
-            disabled={balances?.l2PoolShare === 0 || wait || !account}
-            waiting={wait}
-          />
-          <TokenInput
-            label="L2 to L1"
-            availableToken={balances?.l2Dai}
-            handleClick={moveFundsFromL2ToL1}
-            disabled={balances?.l2Dai === 0 || wait || !account}
+            label="L1 to L2"
+            availableToken={balances?.l1Dai}
+            handleClick={moveFundsFromL1ToL2}
+            disabled={balances?.l1Dai === 0 || wait || !account}
             waiting={wait}
           />
         </>
