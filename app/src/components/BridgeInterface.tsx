@@ -1,21 +1,27 @@
 import { useEthers } from "@usedapp/core";
 import type { TokenBalances } from "src/interfaces/interfaces";
-import TokenInput from "./TokenInput";
 
 interface BridgeInterfaceProps {
-  title: string;
-  infoText: string;
+  chain: "L1" | "L2";
   children: JSX.Element;
   balances: TokenBalances;
 }
 
-export default function BridgeInterface({title,infoText, children, balances}: BridgeInterfaceProps): JSX.Element {
-  const {account, activateBrowserWallet} = useEthers()
+export default function BridgeInterface({
+  chain,
+  children,
+  balances,
+}: BridgeInterfaceProps): JSX.Element {
+  const { account, activateBrowserWallet } = useEthers();
   return (
     <div className="mt-48">
-      <h1 className="font-black text-6xl text-center mb-4">{title}</h1>
+      <h1 className="font-black text-6xl text-center mb-4">
+        Token Bridge {chain}
+      </h1>
       <p className="text-center max-w-2xl mx-auto">
-        {infoText}
+        ATTENTION! Always reset your account if you have send transactions on
+        {chain} Metamask gets irritated with the Nonces in local for some
+        reason.
       </p>
       <div className="mx-auto w-80 p-8 py-10 bg-gray-600 rounded-lg flex flex-col justify-center mt-12">
         <span className="flex flex-row justify-between">
@@ -38,9 +44,7 @@ export default function BridgeInterface({title,infoText, children, balances}: Br
             Activate
           </button>
         )}
-        <div className="flex flex-col mx-auto space-y-4 mt-4">
-          {children}
-        </div>
+        <div className="flex flex-col mx-auto space-y-4 mt-4">{children}</div>
       </div>
     </div>
   );
