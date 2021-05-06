@@ -79,8 +79,6 @@ L2 Pool address on L1 Pool set to: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
 Initializing L2 ERC20...
 ```
 
-You now need to copy the L1_mockDAI, L2_oDAI, L1_ERC20Gateway and L2_Pool addresses into the .env file.
-
 Now run the following to start the frontend and you are ready.
 
 ```sh
