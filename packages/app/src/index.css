@@ -63,25 +63,3 @@ p {
     @apply bg-indigo-300 font-bold shadow-md transform scale-101;
   }
 }
-
-.button-custom {
-  /* border-radius: 0.25rem; */
-  padding: 15px;
-  padding-top: 9px;
-  padding-bottom: 9px;
-  cursor: pointer;
-  margin-left: 35px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: auto;
-  /* color: white; */
-  /* font-weight: 600; */
-  /* box-shadow: 0px 2px 8px -3px black; */
-}
-
-.gray-color {
-  /* background-color: #e5e7eb; */
-  border-color: #636363;
-  color: #636363;
-}

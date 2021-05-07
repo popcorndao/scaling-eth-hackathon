@@ -15,36 +15,28 @@ export default function BridgeInterface({
   const { account, activateBrowserWallet } = useEthers();
   return (
     <div className="mt-48">
-      <h1 className="font-black text-6xl text-center mb-4">
-        Token Bridge {chain}
-      </h1>
-      <p className="text-center max-w-2xl mx-auto">
-        ATTENTION! Always reset your account if you have send transactions on
-        {chain} Metamask gets irritated with the Nonces in local for some
-        reason.
-      </p>
-      <div className="mx-auto w-80 p-8 py-10 bg-gray-600 rounded-lg flex flex-col justify-center mt-12">
+      <div className="mx-auto p-8 py-10 flex flex-row justify-center mt-12">
+        <h2>Mainnet</h2>
         <span className="flex flex-row justify-between">
-          <p>L1 Dai</p>
           <p>{balances?.l1Dai ?? 0}</p>
+          <p>Dai</p>
         </span>
-        <span className="flex flex-row justify-between">
-          <p>L2 Dai</p>
-          <p>{balances?.l2Dai ?? 0}</p>
-        </span>
-        <span className="flex flex-row justify-between">
-          <p>L2 Pool Share</p>
-          <p>{balances?.l2PoolShare ?? 0}</p>
-        </span>
-        {!account && (
-          <button
-            className="border border-indigo-500 rounded-md p-2 mt-4 bg-indigo-600 disabled:opacity-50"
-            onClick={() => activateBrowserWallet()}
-          >
-            Activate
-          </button>
-        )}
+        <div className="w-1/3">
         <div className="flex flex-col mx-auto space-y-4 mt-4">{children}</div>
+          <img
+            className="inline mr-2"
+            src="/images/bridge.png"
+            alt="logo"
+          />
+        </div>
+        
+        <div>
+          <h2>Optimism</h2>
+          <span className="flex flex-row justify-between">
+            <p>{balances?.l2Dai ?? 0}</p>
+            <p>oDai</p>
+          </span>
+        </div>
       </div>
     </div>
   );

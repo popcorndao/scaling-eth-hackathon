@@ -1,7 +1,8 @@
 import { useEthers } from "@usedapp/core";
 import { useEffect, useState } from "react";
 import { Toaster } from "react-hot-toast";
-import BridgeInterface from "src/components/BridgeInterface";
+import AvailableToken from "src/components/AvailableToken";
+import ConnectWallet from "src/components/ConnectWallet";
 import Navbar from "src/components/Navbar";
 import SwitchNetworkAlert from "src/components/SwitchNetworkAlert";
 import TokenInput from "src/components/TokenInput";
@@ -15,16 +16,14 @@ export default function Bridge(): JSX.Element {
   const { account, chainId } = useEthers();
   const [l1Dai, l2Dai, l2Pool, l1TokenGateway] = useContracts();
   const [watcher] = useWatcher();
+  const [wait, setWait] = useState<boolean>(false);
   const balances = useDaiBalances();
   const [l1Allowance, setL1Allowance] = useState<number>(0);
-  const [wait, setWait] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [networkAlert, setNetworkAlert] = useState<boolean>(
-    null
-  );
+  const [networkAlert, setNetworkAlert] = useState<boolean>(null);
 
   useEffect(() => {
-    if (typeof chainId === "number" && (chainId !== 31337 || chainId !== 420)) {
+    if (typeof chainId === "number" && chainId !== 31337 && chainId !== 420) {
       setNetworkAlert(true);
     }
   }, [chainId]);
@@ -99,38 +98,88 @@ export default function Bridge(): JSX.Element {
   }
 
   return (
-    <div className="bg-gray-800 w-screen h-screen text-white flex flex-col">
+    <div className="bg-gray-100 w-screen h-screen text-gray-700 flex flex-col">
       <Navbar />
       <Toaster position="top-right" />
       <SwitchNetworkAlert
         networkAlert={networkAlert}
         setNetworkAlert={setNetworkAlert}
       />
-      <BridgeInterface
-        balances={balances}
-        chain={chainId === 31337 ? "L1" : "L2"}
-      >
-        <>
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          {chainId === 31337 ? (
-            <TokenInput
-              label="L1 to L2"
-              availableToken={balances?.l1Dai}
-              handleClick={moveFundsFromL1ToL2}
-              disabled={balances?.l1Dai === 0 || wait || !account}
-              waiting={wait}
+      {account ? (
+        <div className="w-full mt-32 flex flex-col">
+          <h1 className="text-center text-6xl font-black mb-16">Token Bridge</h1>
+          <div className="flex flex-row w-1/2 mx-auto">
+            {chainId === 31337 ? (
+              <AvailableToken
+                network="Mainnet"
+                icon="/images/mainnet-icon.png"
+                availableToken={balances?.l1Dai}
+                tokenName="Dai"
+              />
+            ) : (
+              <AvailableToken
+                network="Optimism"
+                icon="/images/optimism-icon.png"
+                availableToken={balances?.l2Dai}
+                tokenName="oDai"
+              />
+            )}
+            <div className="w-1/3 mx-auto py-1">
+              <div className="w-full bg-gray-200 flex flex-col h-full justify-center">
+                {error && <p className="text-sm text-red-500">{error}</p>}
+                {chainId === 31337 ? (
+                  <TokenInput
+                    label="Transfer"
+                    availableToken={balances?.l1Dai}
+                    handleClick={moveFundsFromL1ToL2}
+                    disabled={balances?.l1Dai === 0 || wait}
+                    direction="col"
+                    waiting={wait}
+                  />
+                ) : (
+                  <TokenInput
+                    label="Transfer"
+                    availableToken={balances?.l2Dai}
+                    handleClick={moveFundsFromL2ToL1}
+                    disabled={balances?.l2Dai === 0 || wait}
+                    direction="col"
+                    waiting={wait}
+                  />
+                )}
+              </div>
+            </div>
+            {chainId === 31337 ? (
+              <AvailableToken
+                network="Optimism"
+                icon="/images/optimism-icon.png"
+                availableToken={balances?.l2Dai}
+                tokenName="oDai"
+              />
+            ) : (
+              <AvailableToken
+                network="Mainnet"
+                icon="/images/mainnet-icon.png"
+                availableToken={balances?.l1Dai}
+                tokenName="Dai"
+              />
+            )}
+          </div>
+          <p className="text-center mt-4">
+            {chainId === 31337
+              ? "Switch to Optimism if you want to move funds to Mainnet"
+              : "Switch to Mainnet if you want to move funds to Optimism"}
+          </p>
+          <div className="w-full flex justify-center mt-16">
+            <img
+              className="inline mr-2 w-1/2 justify-center opacity-50"
+              src="/images/bridge.png"
+              alt="logo"
             />
-          ) : (
-            <TokenInput
-              label="L2 to L1"
-              availableToken={balances?.l2Dai}
-              handleClick={moveFundsFromL2ToL1}
-              disabled={balances?.l2Dai === 0 || wait || !account}
-              waiting={wait}
-            />
-          )}
-        </>
-      </BridgeInterface>
+          </div>
+        </div>
+      ) : (
+        <ConnectWallet />
+      )}
     </div>
   );
 }

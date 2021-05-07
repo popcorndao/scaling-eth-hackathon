@@ -18,7 +18,7 @@ export default function SwitchNetworkAlert({
             Set your network to localhost:8545 or localhost:9545 in Metamask to continue
           </p>
           <button
-            className="w-24 h-10 mt-4 bg-indigo-600 rounded-md mx-auto hover:bg-indigo-700"
+            className="button button-primary mt-4"
             onClick={() => setNetworkAlert(false)}
           >
             Ok
