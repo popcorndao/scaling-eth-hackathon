@@ -21,7 +21,6 @@ Run the following commands to get started:
 
 ```sh
 yarn
-yarn compile
 ```
 
 Make sure you have the local L1/L2 system running (open a second terminal for this):
@@ -39,7 +38,7 @@ docker-compose up
 Now run the deploy script:
 
 ```sh
-node ./deploy.js
+lerna run deploy-example --parallel
 ```
 
 If everything goes well, you should see something like the following:
@@ -49,6 +48,8 @@ Deploying L1 mockDAI...
 L1_mockDAI address:  0x99bbA657f2BbC93c02D617f8bA121cB8Fc104Acf
 ...
 ```
+
+You'll need to copy the relevant addresses into a `.env` file in the project's root directory.
 
 Now run the following to start the frontend and you are ready.
 

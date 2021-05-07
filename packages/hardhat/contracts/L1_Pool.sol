@@ -1,5 +1,6 @@
 
 // SPDX-License-Identifier: MIT
+// @unsupported: ovm
 
 pragma solidity >=0.7.0 <0.8.4;
 
