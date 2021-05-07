@@ -130,6 +130,7 @@ export default function Pool(): JSX.Element {
                   </span>
                   <TokenInput
                     label="Invest"
+                    tokenName="oDai"
                     availableToken={balances?.l2Dai}
                     handleClick={investInPool}
                     disabled={balances?.l2Dai === 0 || wait || !account}
@@ -147,6 +148,7 @@ export default function Pool(): JSX.Element {
                   </span>
                   <TokenInput
                     label="Withdraw"
+                    tokenName="PS"
                     availableToken={balances?.l2PoolShare}
                     handleClick={withdrawFromPool}
                     disabled={balances?.l2PoolShare === 0 || wait || !account}

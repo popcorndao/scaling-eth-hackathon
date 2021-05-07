@@ -108,7 +108,7 @@ export default function Bridge(): JSX.Element {
       {account ? (
         <div className="w-full mt-32 flex flex-col">
           <h1 className="text-center text-6xl font-black mb-16">Token Bridge</h1>
-          <div className="flex flex-row w-1/2 mx-auto">
+          <div className="flex flex-row w-7/12 mx-auto">
             {chainId === 31337 ? (
               <AvailableToken
                 network="Mainnet"
@@ -124,12 +124,13 @@ export default function Bridge(): JSX.Element {
                 tokenName="oDai"
               />
             )}
-            <div className="w-1/3 mx-auto py-1">
+            <div className="w-1/2 mx-auto py-1">
               <div className="w-full bg-gray-200 flex flex-col h-full justify-center">
                 {error && <p className="text-sm text-red-500">{error}</p>}
                 {chainId === 31337 ? (
                   <TokenInput
                     label="Transfer"
+                    tokenName="Dai"
                     availableToken={balances?.l1Dai}
                     handleClick={moveFundsFromL1ToL2}
                     disabled={balances?.l1Dai === 0 || wait}
@@ -139,6 +140,7 @@ export default function Bridge(): JSX.Element {
                 ) : (
                   <TokenInput
                     label="Transfer"
+                    tokenName="Dai"
                     availableToken={balances?.l2Dai}
                     handleClick={moveFundsFromL2ToL1}
                     disabled={balances?.l2Dai === 0 || wait}
