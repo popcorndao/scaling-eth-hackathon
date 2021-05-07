@@ -17,7 +17,7 @@ export default function Bridge(): JSX.Element {
   const [l1Dai, l2Dai, l2Pool, l1TokenGateway] = useContracts();
   const [watcher] = useWatcher();
   const [wait, setWait] = useState<boolean>(false);
-  const balances = useDaiBalances();
+  const balances = useDaiBalances(wait);
   const [l1Allowance, setL1Allowance] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [networkAlert, setNetworkAlert] = useState<boolean>(null);

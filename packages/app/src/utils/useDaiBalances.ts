@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import type { TokenBalances } from "src/interfaces/interfaces";
 import useContracts from "./useContracts";
 
-export default function useDaiBalances():TokenBalances{
+export default function useDaiBalances(refresh:boolean):TokenBalances{
   const { account } = useEthers();
   const [l1Dai, l2Dai, l2Pool] = useContracts();
   const [balances, setBalances] = useState<TokenBalances>();
@@ -29,6 +29,6 @@ export default function useDaiBalances():TokenBalances{
         }))
       );
     }
-  }, [account, l1Dai, l2Dai, l2Pool]);
+  }, [account, l1Dai, l2Dai, l2Pool,refresh]);
   return balances;
 }
