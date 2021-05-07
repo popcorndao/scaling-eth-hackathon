@@ -173,7 +173,7 @@ export default function Bridge(): JSX.Element {
           </p>
           <div className="w-full flex justify-center mt-16">
             <img
-              className="inline mr-2 w-1/2 justify-center opacity-50"
+              className="inline mr-2 w-1/2 justify-center opacity-10"
               src="/images/bridge.png"
               alt="logo"
             />

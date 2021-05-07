@@ -11,7 +11,7 @@ export default function Navbar(): JSX.Element {
           src="/images/popcorn_v1_rainbow_bg.png"
           alt="logo"
         />
-        <h1 className="font-bold text-xl">Popcorn Network</h1>
+        <h1 className="font-bold text-xl">Popcorn</h1>
       </span>
       <div className="w-56 flex justify-center">
       <span className="space-x-4">
