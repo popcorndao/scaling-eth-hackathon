@@ -127,7 +127,7 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled, ReentrancyGuard {
 
   }
 
-  function withdraw(uint256 amount, address address_)
+  function withdraw(uint256 amount, address address_, bytes32 batchId)
     external
     onlyFromCrossDomainAccount(L2_Pool)
     returns (uint256, uint256)
@@ -141,9 +141,25 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled, ReentrancyGuard {
 
     _transferWithdrawalFee(fee);
     _transferWithdrawal(address_, withdrawal);
+    _reportReceiptToL2Pool(batchId, withdrawal);
 
     _reportPoolTokenHWM();
     return (withdrawal, fee);
+  }
+
+  function _reportReceiptToL2Pool(bytes32 batchId, uint256 daiAmount) internal {
+     bytes memory data =
+      abi.encodeWithSignature(
+      "_batchWithdrawalRequestReceived(bytes32,uint256)",
+        batchId,
+        daiAmount
+      );
+
+    sendCrossDomainMessage(
+        address(L2_Pool),
+        data,
+        8900000
+    );
   }
 
   function takeFees() nonReentrant external {
