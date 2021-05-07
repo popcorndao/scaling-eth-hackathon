@@ -5,7 +5,8 @@
   "license": "MIT",
   "scripts": {
     "clean": "rimraf ./cache & rimraf ./artifacts",
-    "compile": "yarn clean && hardhat compile && hardhat --network optimism compile"
+    "compile": "yarn clean && hardhat compile && hardhat --network optimism compile",
+    "deploy-example": "yarn hardhat run example.js"
   },
   "devDependencies": {
     "@eth-optimism/contracts": "^0.2.4",

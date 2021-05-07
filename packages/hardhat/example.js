@@ -1,4 +1,3 @@
-const ethers = require('ethers')
 const { Watcher } = require('@eth-optimism/watcher')
 const { getContractFactory } = require('@eth-optimism/contracts')
 const { getOptimismRevertReason } = require('./utils/revertOptimism');
@@ -19,7 +18,7 @@ async function main() {
   // Set up our RPC provider connections.
   const l1RpcProvider = new ethers.providers.JsonRpcProvider('http://localhost:9545')
   const l2RpcProvider = new ethers.providers.JsonRpcProvider('http://localhost:8545')
-
+  const [owner, rewardsManager, poolTokenEscrow] = await ethers.getSigners();
   // Set up our wallets (using a default private key with 10k ETH allocated to it).
   // Need two wallets objects, one for interacting with L1 and one for interacting with L2.
   // Both will use the same private key.
@@ -103,7 +102,9 @@ async function main() {
     L1_YearnVault.address,
     L1_CurveDepositZap.address,
     l1MessengerAddress,
-    L1_ERC20Gateway.address
+    L1_ERC20Gateway.address,
+    rewardsManager.address,
+    poolTokenEscrow.address
   )
   await L1_Pool.deployTransaction.wait();
 
@@ -183,15 +184,15 @@ async function main() {
 
   await depositTx.wait();
 
+  console.log(`poolTokenEscrow balance ... ${(await L1_Pool.balanceOf(poolTokenEscrow.address)).toString()}`)
 
   console.log(" waiting for Pool deposit to be relayed to L1 ...")
   const [depositHash] = await watcher.getMessageHashesFromL2Tx(depositTx.hash);
   await watcher.getL1TransactionReceipt(depositHash);
 
   console.log("Balance of DAI in L1_Pool: ", `${await L1_mockDAI.balanceOf(L1_Pool.address)}`);
-  console.log("Balance in L2_Pool: ", `${await L2_Pool.balanceOf(l2Wallet.address)}`);
+  console.log("Balance of L2_Pool tokens: ", `${await L2_Pool.balanceOf(l2Wallet.address)}`);
   console.log("Total assets in yearn vault:" , (await L1_YearnVault.totalAssets()).toString());
-
 
   // withdrawing DAI from L1_Pool
   console.log("Pool Withdrawal (L2->L1->L2) ...");
@@ -208,6 +209,12 @@ async function main() {
   const [withdrawHash] = await watcher.getMessageHashesFromL2Tx(withdrawTx.hash);
   console.log("withdrawHash:" ,withdrawHash);
   await watcher.getL1TransactionReceipt(withdrawHash)
+
+  await new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(true)
+    }, 5000);
+  });
 
   console.log(`oDAI in L2 wallet ${await L2_oDAI.balanceOf(l2Wallet.address)}`);
   console.log("Balance in L2_Pool: ", `${await L2_Pool.balanceOf(l2Wallet.address)}`);
