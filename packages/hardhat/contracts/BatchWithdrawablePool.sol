@@ -14,6 +14,7 @@ abstract contract BatchWithdrawablePool is OVM_CrossDomainEnabled {
 
   address public L1_Target;
   bytes32 public currentWithdrawalBatchId;
+  uint256 public withdrawalPeriod;
 
   enum TransferStatus {
     Pending,
@@ -34,14 +35,19 @@ abstract contract BatchWithdrawablePool is OVM_CrossDomainEnabled {
 
   event WithdrawalRequested(address who, uint256 amount);
   event WithdrawalClaimed(address who, uint256 shares, uint256 tokensToReceive);
+  event WithdrawalRequestReceipt(bytes32 batchId, uint256 tokenBalance);
+  event BatchWithdrawablePoolCreated(address l1_target, uint256 withdrawalPeriod);
 
 
   constructor(
-    address _l1_target
+    address _l1_target,
+    uint256 _withdrawalPeriod
   ) {
     L1_Target = _l1_target;
-    lastWithdrawalMadeAt = block.timestamp;
+    withdrawalPeriod = _withdrawalPeriod;
     currentWithdrawalBatchId =  keccak256(abi.encodePacked(block.timestamp, msg.sender));
+    lastWithdrawalMadeAt = block.timestamp;
+    emit BatchWithdrawablePoolCreated(L1_Target, withdrawalPeriod);
   }
 
   function getWithdrawalsForAddress(address _address) public view returns (bytes32[] memory) {
@@ -57,7 +63,7 @@ abstract contract BatchWithdrawablePool is OVM_CrossDomainEnabled {
   }
 
   function batchWithdrawalAllowed() public view returns (bool) {
-    return block.timestamp.sub(lastWithdrawalMadeAt) >= 12 hours;
+    return block.timestamp.sub(lastWithdrawalMadeAt) >= withdrawalPeriod;
   }
 
   function executeBatchWithdrawal() public returns (uint256) {
@@ -65,6 +71,15 @@ abstract contract BatchWithdrawablePool is OVM_CrossDomainEnabled {
     require(amountToWithdraw > 0, "not enough to withdraw");
     require(batchWithdrawalAllowed(), "can not execute batch withdrawal yet");
     
+    _crossDomainWithdrawal(amountToWithdraw); 
+
+    _handlePostBatchWithdrawal();
+
+    return amountToWithdraw;
+
+  }
+
+  function _crossDomainWithdrawal(uint256 amountToWithdraw) internal {
     bytes memory data =
       abi.encodeWithSignature(
       "withdraw(uint256,address,bytes32)",
@@ -78,11 +93,6 @@ abstract contract BatchWithdrawablePool is OVM_CrossDomainEnabled {
         data,
         8900000
     );
-
-    _handlePostBatchWithdrawal();
-
-    return amountToWithdraw;
-
   }
 
   function _generateNextWithdrawalBatchId() internal returns (bytes32) {
@@ -98,6 +108,10 @@ abstract contract BatchWithdrawablePool is OVM_CrossDomainEnabled {
 
     withdrawalBatchIds[msg.sender].push(currentWithdrawalBatchId);
     emit WithdrawalRequested(msg.sender, amount);
+
+    if (batchWithdrawalAllowed()) {
+      executeBatchWithdrawal();
+    }
   }
 
 
@@ -110,6 +124,7 @@ abstract contract BatchWithdrawablePool is OVM_CrossDomainEnabled {
   function _batchWithdrawalRequestReceived(bytes32 batchId, uint256 tokenBalance) external onlyFromCrossDomainAccount(L1_Target) {
     withdrawalVaults[batchId].transferStatus = TransferStatus.Completed;
     withdrawalVaults[batchId].tokenBalance = tokenBalance;
+    emit WithdrawalRequestReceipt(batchId, tokenBalance);
   }
 
   function _claimWithdrawal(bytes32 batchId) internal returns (uint256) {

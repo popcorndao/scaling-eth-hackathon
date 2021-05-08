@@ -46,6 +46,10 @@ interface OVM_L1ERC20Gateway {
 
 interface PoolTokenEscrow {}
 
+/**
+* todo: create PoolTokenEscrow contract 
+* todo: test _reportReceiptToL2Pool
+*/
 contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled, ReentrancyGuard {
 
   using SafeMath for uint256;

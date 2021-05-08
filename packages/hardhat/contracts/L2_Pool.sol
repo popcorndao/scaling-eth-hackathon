@@ -12,6 +12,10 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import { OVM_CrossDomainEnabled } from "@eth-optimism/contracts/libraries/bridge/OVM_CrossDomainEnabled.sol";
 
 
+/**
+* todo: create BatchDepositablePool with deposit receipts
+* todo: user secure ERC20 contract
+*/
 contract L2_Pool is ERC20, OVM_CrossDomainEnabled, BatchWithdrawablePool {
 
   using SafeMath for uint256;
@@ -19,20 +23,24 @@ contract L2_Pool is ERC20, OVM_CrossDomainEnabled, BatchWithdrawablePool {
   L2DepositedERC20 public oDAI;
   address public L1_Pool;
   
-
   uint256 public toDeposit;
+  uint256 public batchTransferPeriod;
+  uint256 public lastDepositMadeAt;
 
   event Deposit(address from, uint256 deposit, uint256 poolTokens);
 
   constructor(
     L2DepositedERC20 _oDAI,
     address _L1_Pool,
-    address _L2_CrossDomainMessenger
+    address _L2_CrossDomainMessenger,
+    uint256 _batchTransferPeriod
   ) OVM_CrossDomainEnabled(_L2_CrossDomainMessenger)
-    ERC20(0, "Popcorn DAI L2_YieldOptimizerPool")  
-    BatchWithdrawablePool(_L1_Pool) {
+    ERC20(0, "Popcorn DAI L2 YieldOptimizerPool")  
+    BatchWithdrawablePool(_L1_Pool, _batchTransferPeriod) {
+    batchTransferPeriod = _batchTransferPeriod;
     oDAI = _oDAI;
-    L1_Pool = _L2_CrossDomainMessenger;
+    L1_Pool = _L1_Pool;
+    lastDepositMadeAt = block.timestamp;
   }
 
   function deposit(uint256 amount) external returns (uint256) {
@@ -46,11 +54,20 @@ contract L2_Pool is ERC20, OVM_CrossDomainEnabled, BatchWithdrawablePool {
     oDAI.transferFrom(msg.sender, address(this), amount);
     toDeposit = toDeposit.add(amount);
 
+    if (batchDepositAllowed()) {
+      executeBatchDeposit();
+    }
+
     return this.balanceOf(msg.sender);
+  }
+
+  function batchDepositAllowed() public returns (bool) {
+    return block.timestamp.sub(lastDepositMadeAt) >= batchTransferPeriod;
   }
 
   function executeBatchDeposit() public returns (uint256) {
     require(toDeposit > 0, "not enough to deposit");
+    require(batchDepositAllowed(), "batch deposit not yet allowed");
     
     // mint POP tokens to incentivize calling this function
 
@@ -66,6 +83,8 @@ contract L2_Pool is ERC20, OVM_CrossDomainEnabled, BatchWithdrawablePool {
         8900000
     );
 
+    lastDepositMadeAt = block.timestamp;
+
     return toDeposit;
 
   }
@@ -74,10 +93,10 @@ contract L2_Pool is ERC20, OVM_CrossDomainEnabled, BatchWithdrawablePool {
   * user can request an amount of shares to be redeemed by the L1_Pool and subsequently withdrawn from the L1_Pool
   * withdrawal requests are batched in order to avoid L1 gas fees to end users
   **/
-  function requestWithdrawal(uint256 amount) external returns (uint256) {
+  function requestWithdrawal(uint256 amount) public returns (uint256) {
 
     //  todo: check if timelock has expired
-    require(amount <= this.balanceOf(msg.sender));
+    require(amount <= this.balanceOf(msg.sender), "request exceeds balance");
     _burnPoolTokens(msg.sender, amount);
     _pushWithdrawalRequest(amount);
     return amount;

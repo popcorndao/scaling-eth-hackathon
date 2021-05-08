@@ -1,14 +1,12 @@
 import { expect } from "chai";
 import { ethers, waffle } from "hardhat";
-import { parseEther, parseUnits } from "ethers/lib/utils";
-import { BigNumber } from "ethers";
+import { parseEther } from "ethers/lib/utils";
 import {deployMockContract} from '@ethereum-waffle/mock-contract';
 
 const provider = waffle.provider;
 
 describe('L1_Pool', function () {
   const DepositorInitial = parseEther("10000000");
-  let MockERC20, MockYearnV2Vault, MockCurveDepositZap, L1_Pool, L1_ERC20_Gateway;
   let owner, depositor, depositor1, depositor2, depositor3, depositor4, depositor5, rewardsManager, poolTokenEscrow;
 
   const l1CrossDomainMessengerAddress = "0x59b670e9fA9D0A427751Af201D676719a970857b";
@@ -17,30 +15,26 @@ describe('L1_Pool', function () {
   beforeEach(async function () {
     [owner, depositor, depositor1, depositor2, depositor3, depositor4, depositor5, rewardsManager, poolTokenEscrow] = await ethers.getSigners();
 
-    MockERC20 = await ethers.getContractFactory("MockERC20");
+    const MockERC20 = await ethers.getContractFactory("MockERC20");
     this.mockDai = await MockERC20.deploy("DAI", "DAI");
     await this.mockDai.mint(depositor.address, DepositorInitial);
     await this.mockDai.mint(depositor1.address, DepositorInitial);
     await this.mockDai.mint(depositor2.address, DepositorInitial);
 
 
-    MockCurveDepositZap = await ethers.getContractFactory("MockCurveDepositZap");
+    const MockCurveDepositZap = await ethers.getContractFactory("MockCurveDepositZap");
     this.mockCurveDepositZap = await MockCurveDepositZap.deploy(this.mockDai.address);
 
-    MockYearnV2Vault = await ethers.getContractFactory("MockYearnV2Vault");
+    const MockYearnV2Vault = await ethers.getContractFactory("MockYearnV2Vault");
     this.mockYearnVault = await MockYearnV2Vault.deploy(this.mockCurveDepositZap.address);
 
-    const L2_DepositedERC20 = await ethers.getContractFactory("L2DepositedERC20");
-    this.L2_oDAI = await L2_DepositedERC20.deploy(  l2CrossDomainMessengerAddress,
-      'oDAI')
 
-
-    L1_ERC20_Gateway = await ethers.getContractFactory('Mock_OVM_L1ERC20Gateway');
+    const L1_ERC20_Gateway = await ethers.getContractFactory('Mock_OVM_L1ERC20Gateway');
     this.L1_ERC20_Gateway =  await deployMockContract(
       owner, L1_ERC20_Gateway.interface.format()
     );
 
-    L1_Pool = await ethers.getContractFactory("L1_Pool");
+    const L1_Pool = await ethers.getContractFactory("L1_Pool");
     this.L1_Pool = await L1_Pool.deploy(
       this.mockDai.address,
       this.mockYearnVault.address,
@@ -104,7 +98,7 @@ describe('L1_Pool', function () {
       await this.mockDai.connect(depositor).approve(this.L1_Pool.address, amount);
       await this.mockDai.connect(depositor).transfer(this.L1_Pool.address, amount);
       await this.L1_Pool.deposit();
-      await expect(this.L1_Pool.withdraw(parseEther('2000'), depositor.address)).to.be.revertedWith("OVM_XCHAIN: messenger contract unauthenticated");
+      await expect(this.L1_Pool.withdraw(parseEther('2000'), depositor.address, ethers.utils.formatBytes32String('BatchId1234'))).to.be.revertedWith("OVM_XCHAIN: messenger contract unauthenticated");
     });
 
     /** 
