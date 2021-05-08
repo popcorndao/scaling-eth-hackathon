@@ -25,7 +25,7 @@ abstract contract BatchWithdrawablePool is OVM_CrossDomainEnabled {
     TransferStatus transferStatus;
     uint256 unclaimedShares;
     uint256 tokenBalance;
-    mapping(address => uint256) balances;
+    mapping(address => uint256) shareBalances;
   }
 
   mapping(address => bytes32[]) public withdrawalBatchIds;
@@ -44,14 +44,17 @@ abstract contract BatchWithdrawablePool is OVM_CrossDomainEnabled {
     currentWithdrawalBatchId =  keccak256(abi.encodePacked(block.timestamp, msg.sender));
   }
 
-  function getUserWithdrawals(address _address) public view returns (bytes32[] memory) {
+  function getWithdrawalsForAddress(address _address) public view returns (bytes32[] memory) {
     return withdrawalBatchIds[_address];
   }
 
-  function userHasClaimableWithdrawal(bytes32 batchId) public view returns (bool) {
-    return withdrawalVaults[batchId].balances[msg.sender] > 0 && withdrawalVaults[batchId].transferStatus == TransferStatus.Completed;
+  function addressHasClaimableWithdrawal(address _address, bytes32 batchId) public view returns (bool) {
+    return withdrawalVaults[batchId].shareBalances[_address] > 0 && withdrawalVaults[batchId].transferStatus == TransferStatus.Completed;
   }
 
+  function getWithdrawableBalance(address _address, bytes32 batchId) public view returns (uint256) {
+    return withdrawalVaults[batchId].shareBalances[_address];
+  }
 
   function batchWithdrawalAllowed() public view returns (bool) {
     return block.timestamp.sub(lastWithdrawalMadeAt) >= 12 hours;
@@ -91,7 +94,7 @@ abstract contract BatchWithdrawablePool is OVM_CrossDomainEnabled {
   function _pushWithdrawalRequest(uint256 amount) internal {
     WithdrawalVault storage vault = withdrawalVaults[currentWithdrawalBatchId];
     vault.unclaimedShares = vault.unclaimedShares.add(amount);
-    vault.balances[msg.sender] = vault.balances[msg.sender].add(amount);
+    vault.shareBalances[msg.sender] = vault.shareBalances[msg.sender].add(amount);
 
     withdrawalBatchIds[msg.sender].push(currentWithdrawalBatchId);
     emit WithdrawalRequested(msg.sender, amount);
@@ -111,9 +114,9 @@ abstract contract BatchWithdrawablePool is OVM_CrossDomainEnabled {
 
   function _claimWithdrawal(bytes32 batchId) internal returns (uint256) {
     require(withdrawalVaults[batchId].transferStatus == TransferStatus.Completed, "cannot claim withdrawal yet");
-    require(userHasClaimableWithdrawal(batchId));
+    require(addressHasClaimableWithdrawal(msg.sender, batchId));
     
-    uint256 sharesToRedeem = withdrawalVaults[batchId].balances[msg.sender]; 
+    uint256 sharesToRedeem = withdrawalVaults[batchId].shareBalances[msg.sender]; 
     uint256 tokensToReceive = _redeemSharesFromVault(batchId, sharesToRedeem);
     emit WithdrawalClaimed(msg.sender, sharesToRedeem, tokensToReceive);
 
@@ -128,7 +131,7 @@ abstract contract BatchWithdrawablePool is OVM_CrossDomainEnabled {
     // update vault
     vault.unclaimedShares = vault.unclaimedShares.sub(sharesToRedeem);
     vault.tokenBalance = vault.tokenBalance.sub(tokenAmountToReceive);
-    vault.balances[msg.sender] = 0;
+    vault.shareBalances[msg.sender] = 0;
 
     return tokenAmountToReceive;
   }

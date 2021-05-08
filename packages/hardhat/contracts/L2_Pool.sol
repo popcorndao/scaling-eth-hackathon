@@ -74,7 +74,7 @@ contract L2_Pool is ERC20, OVM_CrossDomainEnabled, BatchWithdrawablePool {
   * user can request an amount of shares to be redeemed by the L1_Pool and subsequently withdrawn from the L1_Pool
   * withdrawal requests are batched in order to avoid L1 gas fees to end users
   **/
-  function requestWithdraw(uint256 amount) external returns (uint256) {
+  function requestWithdrawal(uint256 amount) external returns (uint256) {
 
     //  todo: check if timelock has expired
     require(amount <= this.balanceOf(msg.sender));
