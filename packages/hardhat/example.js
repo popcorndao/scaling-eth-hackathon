@@ -116,6 +116,7 @@ async function main() {
     L2_oDAI.address,
     L1_Pool.address,
     l2MessengerAddress,
+    0,
     { gasPrice: 0, gasLimit: 8900000 }
   )
   //const revertReason1 = await getOptimismRevertReason({tx: L2_Pool.deployTransaction, provider: l2RpcProvider });
@@ -196,7 +197,7 @@ async function main() {
 
   // withdrawing DAI from L1_Pool
   console.log("Pool Withdrawal (L2->L1->L2) ...");
-  const withdrawTx = await L2_Pool.connect(l2Wallet).withdraw(1234, { gasLimit: 8900000, gasPrice: 0});
+  const withdrawTx = await L2_Pool.connect(l2Wallet).requestWithdrawal(1234, { gasLimit: 8900000, gasPrice: 0});
   //const revertReason3 = await getOptimismRevertReason({tx: withdrawTx, provider: l2RpcProvider });
   
   //if (revertReason3) {
@@ -220,30 +221,18 @@ async function main() {
   console.log("Balance in L2_Pool: ", `${await L2_Pool.balanceOf(l2Wallet.address)}`);
   console.log("Total assets in yearn vault:" , (await L1_YearnVault.totalAssets()).toString());
   
+  console.log(`
+PASTE THE FOLLOWING LINES IN .env:
 
 
 
-  /** 
+REACT_APP_L1_DAI_ADDRESS=${L1_mockDAI.address}
+REACT_APP_L2_DAI_ADDRESS=${L2_oDAI.address}
+REACT_APP_L2_POOL_ADDRESS=${L2_Pool.address}
+REACT_APP_L1_TOKEN_GATEWAY_ADDRESS=${L1_ERC20Gateway.address}
+`)
 
-  // Burn the tokens on L2 and ask the L1 contract to unlock on our behalf.
-  console.log(`Withdrawing tokens back to L1 ERC20...`)
-  const tx3 = await L2_oDAI.withdraw(
-    1234,
-    {
-      gasPrice: 0
-    }
-  )
-  await tx3.wait()
 
-  // Wait for the message to be relayed to L1.
-  console.log(`Waiting for withdrawal to be relayed to L1...`)
-  const [ msgHash2 ] = await watcher.getMessageHashesFromL2Tx(tx3.hash)
-  await watcher.getL1TransactionReceipt(msgHash2)
-
-  // Log balances again!
-  console.log(`Balance on L1: ${await L1_mockDAI.balanceOf(l1Wallet.address)}`) // 1234
-  console.log(`Balance on L2: ${await L2_oDAI.balanceOf(l1Wallet.address)}`) // 0
-  **/
 }
 
 main()

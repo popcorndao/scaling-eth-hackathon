@@ -99,6 +99,11 @@ contract L2_Pool is ERC20, OVM_CrossDomainEnabled, BatchWithdrawablePool {
     require(amount <= this.balanceOf(msg.sender), "request exceeds balance");
     _burnPoolTokens(msg.sender, amount);
     _pushWithdrawalRequest(amount);
+
+    if (batchWithdrawalAllowed()) {
+      executeBatchWithdrawal();
+    }
+    
     return amount;
 
   }

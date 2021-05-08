@@ -78,7 +78,7 @@ export default function Pool(): JSX.Element {
       setWait(false);
       return;
     }
-    const withdrawTx = await l2Pool.withdraw(amount, {
+    const withdrawTx = await l2Pool.requestWithdrawal(amount, {
       gasLimit: 8900000,
       gasPrice: 0,
     });
@@ -130,7 +130,7 @@ export default function Pool(): JSX.Element {
                   </span>
                   <TokenInput
                     label="Invest"
-                    tokenName="oDai"
+                    tokenName="oDAI"
                     availableToken={balances?.l2Dai}
                     handleClick={investInPool}
                     disabled={balances?.l2Dai === 0 || wait || !account}
@@ -148,7 +148,7 @@ export default function Pool(): JSX.Element {
                   </span>
                   <TokenInput
                     label="Withdraw"
-                    tokenName="PS"
+                    tokenName="oDAI"
                     availableToken={balances?.l2PoolShare}
                     handleClick={withdrawFromPool}
                     disabled={balances?.l2PoolShare === 0 || wait || !account}

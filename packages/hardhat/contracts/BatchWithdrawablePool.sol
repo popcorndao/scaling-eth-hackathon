@@ -108,10 +108,6 @@ abstract contract BatchWithdrawablePool is OVM_CrossDomainEnabled {
 
     withdrawalBatchIds[msg.sender].push(currentWithdrawalBatchId);
     emit WithdrawalRequested(msg.sender, amount);
-
-    if (batchWithdrawalAllowed()) {
-      executeBatchWithdrawal();
-    }
   }
 
 
