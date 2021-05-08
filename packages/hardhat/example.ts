@@ -1,6 +1,11 @@
-const { Watcher } = require('@eth-optimism/watcher')
-const { getContractFactory } = require('@eth-optimism/contracts')
-const { getOptimismRevertReason } = require('./utils/revertOptimism');
+
+import { Watcher } from '@eth-optimism/watcher';
+import { getContractFactory }  from '@eth-optimism/contracts';
+import { getOptimismRevertReason } from './utils/revertOptimism';
+import { ethers } from 'hardhat';
+import BatchWithdrawablePoolAdapter from './utils/BatchWithdrawalablePoolAdapter';
+import { BatchWithdrawablePool } from './typechain';
+
 // Set up some contract factories. You can ignore this stuff.
 const factory = (name, ovm = false, mocks= false) => {
   const artifact = require(`./artifacts${ovm ? '-ovm' : ''}/contracts/${mocks ? '/mocks/' : ''}${name}.sol/${name}.json`)
@@ -46,7 +51,7 @@ async function main() {
   // Deploy an ERC20 token on L1.
   console.log('Deploying L1 mockDAI...')
   const L1_mockDAI = await factory__L1_ERC20.connect(l1Wallet).deploy(
-    1234, //initialSupply
+    5000, //initialSupply
     'mockDAI', //name
   )
   await L1_mockDAI.deployTransaction.wait()
@@ -150,12 +155,12 @@ async function main() {
 
   // Allow the gateway to lock up some of our tokens.
   console.log('Approving tokens for ERC20 gateway...')
-  const tx1 = await L1_mockDAI.approve(L1_ERC20Gateway.address, 1234)
+  const tx1 = await L1_mockDAI.approve(L1_ERC20Gateway.address, 5000)
   await tx1.wait()
 
   // Lock the tokens up inside the gateway and ask the L2 contract to mint new ones.
   console.log('Depositing tokens into L2 ERC20...')
-  const tx2 = await L1_ERC20Gateway.deposit(1234)
+  const tx2 = await L1_ERC20Gateway.deposit(5000)
   await tx2.wait()
 
   // Wait for the message to be relayed to L2.
@@ -170,13 +175,13 @@ async function main() {
 
   // allow L2_Pool to use our tokens
   console.log("Approving L2_Pool to spend oDAI ... ");
-  const approveTx = await L2_oDAI.connect(l2Wallet).approve(L2_Pool.address, 1234, { gasLimit: 8900000, gasPrice: 0})
+  const approveTx = await L2_oDAI.connect(l2Wallet).approve(L2_Pool.address, 2500, { gasLimit: 8900000, gasPrice: 0})
   await approveTx.wait();
 
 
   // deposit oDAI into L1_Pool
   console.log("Depositing oDAI into L1_Pool ... ");
-  const depositTx = await L2_Pool.connect(l2Wallet).deposit(1234, { gasLimit: 8900000, gasPrice: 0});
+  const depositTx = await L2_Pool.connect(l2Wallet).deposit(2500, { gasLimit: 8900000, gasPrice: 0});
   //const revertReason2 = await getOptimismRevertReason({tx: depositTx, provider: l2RpcProvider });
   
   //if (revertReason2) {
@@ -197,7 +202,7 @@ async function main() {
 
   // withdrawing DAI from L1_Pool
   console.log("Pool Withdrawal (L2->L1->L2) ...");
-  const withdrawTx = await L2_Pool.connect(l2Wallet).requestWithdrawal(1234, { gasLimit: 8900000, gasPrice: 0});
+  const withdrawTx = await L2_Pool.connect(l2Wallet).requestWithdrawal(2500, { gasLimit: 8900000, gasPrice: 0});
   //const revertReason3 = await getOptimismRevertReason({tx: withdrawTx, provider: l2RpcProvider });
   
   //if (revertReason3) {
@@ -218,13 +223,15 @@ async function main() {
   });
 
   console.log(`oDAI in L2 wallet ${await L2_oDAI.balanceOf(l2Wallet.address)}`);
-  console.log("Balance in L2_Pool: ", `${await L2_Pool.balanceOf(l2Wallet.address)}`);
+  console.log("Balance of DAI in L2_Pool: ", `${await L2_oDAI.balanceOf(L2_Pool.address)}`);
   console.log("Total assets in yearn vault:" , (await L1_YearnVault.totalAssets()).toString());
+
+  const pool = BatchWithdrawablePoolAdapter.fromContract(L2_Pool as BatchWithdrawablePool);
+  console.log("withdrawal summaries", (await pool.getWithdrawalSummaries(l2Wallet.address)));
+  
   
   console.log(`
 PASTE THE FOLLOWING LINES IN .env:
-
-
 
 REACT_APP_L1_DAI_ADDRESS=${L1_mockDAI.address}
 REACT_APP_L2_DAI_ADDRESS=${L2_oDAI.address}

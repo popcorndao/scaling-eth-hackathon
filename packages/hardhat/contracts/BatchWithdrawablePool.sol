@@ -117,7 +117,7 @@ abstract contract BatchWithdrawablePool is OVM_CrossDomainEnabled {
     return _generateNextWithdrawalBatchId();
   }
 
-  function _batchWithdrawalRequestReceived(bytes32 batchId, uint256 tokenBalance) external onlyFromCrossDomainAccount(L1_Target) {
+  function batchWithdrawalRequestReceived(bytes32 batchId, uint256 tokenBalance) public onlyFromCrossDomainAccount(L1_Target) {
     withdrawalVaults[batchId].transferStatus = TransferStatus.Completed;
     withdrawalVaults[batchId].tokenBalance = tokenBalance;
     emit WithdrawalRequestReceipt(batchId, tokenBalance);

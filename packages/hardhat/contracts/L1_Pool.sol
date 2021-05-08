@@ -154,7 +154,7 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled, ReentrancyGuard {
   function _reportReceiptToL2Pool(bytes32 batchId, uint256 daiAmount) internal {
      bytes memory data =
       abi.encodeWithSignature(
-      "_batchWithdrawalRequestReceived(bytes32,uint256)",
+      "batchWithdrawalRequestReceived(bytes32,uint256)",
         batchId,
         daiAmount
       );

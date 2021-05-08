@@ -2,7 +2,7 @@ import { useState } from "react";
 
 interface TokenInputProps {
   label: string;
-  tokenName:string;
+  tokenName: string;
   availableToken: number;
   handleClick: (amount: number) => Promise<void>;
   waiting: boolean;
