@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from 'react';
 
 interface TokenInputProps {
   label: string;
@@ -20,6 +20,9 @@ export default function TokenInput({
   disabled = false,
 }: TokenInputProps): JSX.Element {
   const [tokenAmount, setTokenAmount] = useState<number>(0);
+  useEffect(() => {
+    setTokenAmount(0);
+  }, [waiting])
 
   return (
     <div
@@ -54,7 +57,7 @@ export default function TokenInput({
         </button>
       </span>
       <button
-        className="w-5/12 button button-primary mt-2"
+        className="w-5/12 button button-primary"
         type="button"
         onClick={() => handleClick(tokenAmount)}
         disabled={disabled}
