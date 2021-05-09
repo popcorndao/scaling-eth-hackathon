@@ -5,15 +5,17 @@ import ConnectWallet from "src/components/ConnectWallet";
 import Navbar from "src/components/Navbar";
 import SwitchNetworkAlert from "src/components/SwitchNetworkAlert";
 import TokenInput from "src/components/TokenInput";
+import WithdrawalsTable from "src/components/WithdrawalsTable";
 import approveSpending from "src/utils/approveSpending";
 import useContracts from "src/utils/useContracts";
 import useDaiBalances from "src/utils/useDaiBalances";
 import useWatcher from "src/utils/useWatcher";
 import watchCrossChainMessage from "src/utils/watchCrossChainMessage";
 
+
 export default function Pool(): JSX.Element {
   const { account, chainId } = useEthers();
-  const [l1Dai, l2Dai, l2Pool, l1TokenGateway] = useContracts();
+  const [,l2Dai, l2Pool] = useContracts();
   const [watcher] = useWatcher();
   const [wait, setWait] = useState<boolean>(false);
   const balances = useDaiBalances(wait);
@@ -61,9 +63,9 @@ export default function Pool(): JSX.Element {
     await watchCrossChainMessage(
       depositTx,
       {
-        loading: "Investing...",
-        success: "Investing Success",
-        error: "Investing Error",
+        loading: "Depositing ...",
+        success: "Deposit Success",
+        error: "Depositing Error",
       },
       watcher,
       "L1"
@@ -78,7 +80,7 @@ export default function Pool(): JSX.Element {
       setWait(false);
       return;
     }
-    const withdrawTx = await l2Pool.withdraw(amount, {
+    const withdrawTx = await l2Pool.requestWithdrawal(amount, {
       gasLimit: 8900000,
       gasPrice: 0,
     });
@@ -86,8 +88,8 @@ export default function Pool(): JSX.Element {
       withdrawTx,
       {
         loading: "Withdrawing from Pool...",
-        success: "Withdrawl Success",
-        error: "Withdrawl Error",
+        success: "Withdrawal Request Success",
+        error: "Withdrawal Error",
       },
       watcher,
       "L1"
@@ -105,32 +107,33 @@ export default function Pool(): JSX.Element {
       />
       {account ? (
         <div className="w-full mt-32 flex flex-col">
-          <h1 className="text-center text-6xl font-black mb-16">Pool</h1>
+          <h1 className="text-center text-6xl font-black mb-16">oDAI Yield Optimizer Pool</h1>
           <div className="w-1/2 bg-white shadow-lg rounded-lg mx-auto">
             <div className="flex flex-row">
               <div className="flex flex-col w-1/2 bg-gradient-to-r from-blue-500 to-blue-700 text-white pl-8 py-8 pr-4 rounded-l-lg">
                 <div>
+                <span className="flex flex-row items-baseline mt-2 mb-2">
+                    <h2 className="font-bold text-4xl">oDAI - 30% APY</h2>
+                  </span>
                   <p>
-                    This strategy earns a yield through incentivized shorting
+                    When you deposit to this pool, we'll move your oDAI to Ethereum (Layer 1). The strategy on Layer 1 earns a yield through incentivized shorting using sUSD
                     and through the interest earned by lending the ETH long
                     position. This Pool collateralizes an incentivized short
                     position (sETH) with sUSD, balanced by an equally weighted
                     long position (ETH).
                   </p>
-                  <span className="flex flex-row items-baseline mt-4">
-                    <h2 className="font-bold text-4xl">30% APY</h2>
-                  </span>
+
                 </div>
               </div>
               <div className="flex flex-col w-1/2 px-8 pt-6 pb-8">
                 <div className="mb-8">
                   <span className="flex flex-row justify-between mb-1">
-                    <h2 className="font-bold text-2xl">Invest</h2>
+                    <h2 className="font-bold text-2xl">Deposit</h2>
                     <p className="text-lg">{balances?.l2Dai ?? 0} oDai</p>
                   </span>
                   <TokenInput
-                    label="Invest"
-                    tokenName="oDai"
+                    label="Deposit"
+                    tokenName="oDAI"
                     availableToken={balances?.l2Dai}
                     handleClick={investInPool}
                     disabled={balances?.l2Dai === 0 || wait || !account}
@@ -143,12 +146,12 @@ export default function Pool(): JSX.Element {
                   <span className="flex flex-row justify-between mb-1">
                     <h2 className="font-bold text-2xl">Withdraw</h2>
                     <p className="text-lg">
-                      {balances?.l2PoolShare ?? 0} Pool Share
+                      {balances?.l2PoolShare ?? 0} Pool Shares
                     </p>
                   </span>
                   <TokenInput
-                    label="Withdraw"
-                    tokenName="PS"
+                    label="Request Withdrawal"
+                    tokenName="oDAI"
                     availableToken={balances?.l2PoolShare}
                     handleClick={withdrawFromPool}
                     disabled={balances?.l2PoolShare === 0 || wait || !account}
@@ -160,6 +163,7 @@ export default function Pool(): JSX.Element {
               </div>
             </div>
           </div>
+          <WithdrawalsTable shouldRefresh={[wait, setWait]}></WithdrawalsTable>
         </div>
       ) : (
         <ConnectWallet />

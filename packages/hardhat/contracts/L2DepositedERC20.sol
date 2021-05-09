@@ -35,6 +35,10 @@ contract L2DepositedERC20 is Abs_L2DepositedToken, ERC20 {
         ERC20(0, _name)
     {}
 
+    function mint(address _who, uint256 _amount) public {
+        _mint(_who, _amount);
+    }
+
     /**
      * Handler that gets called when a withdrawal is initiated.
      * @param _to Address triggering the withdrawal.

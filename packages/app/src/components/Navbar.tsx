@@ -18,7 +18,7 @@ export default function Navbar(): JSX.Element {
           Bridge
         </NavLink>
         <NavLink activeClassName="font-bold" to="/pool">
-          Pool
+          Yield Optimizer
         </NavLink>
       </span>
       </div>

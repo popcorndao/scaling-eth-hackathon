@@ -63,7 +63,7 @@ export default function Bridge(): JSX.Element {
     await watchCrossChainMessage(
       depositTx,
       {
-        loading: "Depositing Dai in L2...",
+        loading: "Depositing DAI in L2...",
         success: "Deposit Success",
         error: "Deposit Error",
       },
@@ -76,7 +76,7 @@ export default function Bridge(): JSX.Element {
   async function moveFundsFromL2ToL1(amount: number) {
     setWait(true);
     if (amount > balances.l2Dai) {
-      setError("You dont have enough Dai for this.");
+      setError("You dont have enough DAI for this.");
       setWait(false);
       return;
     }
@@ -87,7 +87,7 @@ export default function Bridge(): JSX.Element {
     await watchCrossChainMessage(
       withdrawTx,
       {
-        loading: "Withdrawing Dai to L1...",
+        loading: "Withdrawing DAI to L1...",
         success: "Withdraw Success",
         error: "Withdraw Error",
       },
@@ -114,14 +114,14 @@ export default function Bridge(): JSX.Element {
                 network="Mainnet"
                 icon="/images/mainnet-icon.png"
                 availableToken={balances?.l1Dai}
-                tokenName="Dai"
+                tokenName="DAI"
               />
             ) : (
               <AvailableToken
                 network="Optimism"
                 icon="/images/optimism-icon.png"
                 availableToken={balances?.l2Dai}
-                tokenName="oDai"
+                tokenName="oDAI"
               />
             )}
             <div className="w-1/2 mx-auto py-1">
@@ -130,7 +130,7 @@ export default function Bridge(): JSX.Element {
                 {chainId === 31337 ? (
                   <TokenInput
                     label="Transfer"
-                    tokenName="Dai"
+                    tokenName="DAI"
                     availableToken={balances?.l1Dai}
                     handleClick={moveFundsFromL1ToL2}
                     disabled={balances?.l1Dai === 0 || wait}
@@ -140,7 +140,7 @@ export default function Bridge(): JSX.Element {
                 ) : (
                   <TokenInput
                     label="Transfer"
-                    tokenName="Dai"
+                    tokenName="DAI"
                     availableToken={balances?.l2Dai}
                     handleClick={moveFundsFromL2ToL1}
                     disabled={balances?.l2Dai === 0 || wait}
@@ -155,14 +155,14 @@ export default function Bridge(): JSX.Element {
                 network="Optimism"
                 icon="/images/optimism-icon.png"
                 availableToken={balances?.l2Dai}
-                tokenName="oDai"
+                tokenName="oDAI"
               />
             ) : (
               <AvailableToken
                 network="Mainnet"
                 icon="/images/mainnet-icon.png"
                 availableToken={balances?.l1Dai}
-                tokenName="Dai"
+                tokenName="DAI"
               />
             )}
           </div>
@@ -173,7 +173,7 @@ export default function Bridge(): JSX.Element {
           </p>
           <div className="w-full flex justify-center mt-16">
             <img
-              className="inline mr-2 w-1/2 justify-center opacity-10"
+              className="inline mr-2 w-1/2 justify-center opacity-5"
               src="/images/bridge.png"
               alt="logo"
             />
