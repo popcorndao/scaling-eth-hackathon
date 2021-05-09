@@ -8,6 +8,11 @@ In this project we make it simple to grow your crypto assets on Optimism, while 
 
 Learn more about [Popcorn](https://popcorn.network).
 
+
+## Technical Diagram
+
+![](diagram.png)
+
 ## Prerequisite Software
 
 - [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)

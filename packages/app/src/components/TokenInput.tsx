@@ -31,7 +31,7 @@ export default function TokenInput({
       } items-center w-full rounded-md`}
     >
       <span
-        className={`flex flex-row ${direction === "col" ? "w-5/12" : "w-7/12"} items-center`}
+        className={`flex flex-row ${direction === "col" ? "w-5/12" : "w-7/12"} items-center mb-2`}
       >
         <input
           type="text"
@@ -57,7 +57,7 @@ export default function TokenInput({
         </button>
       </span>
       <button
-        className="w-5/12 button button-primary"
+        className="w-5/12 button button-primary mb-2"
         type="button"
         onClick={() => handleClick(tokenAmount)}
         disabled={disabled}

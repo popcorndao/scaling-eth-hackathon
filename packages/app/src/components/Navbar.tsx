@@ -24,12 +24,12 @@ export default function Navbar(): JSX.Element {
       </div>
       <div className="w-56 flex justify-end">
         <button
-          className={`button button-secondary w-28 flex flex-row items-center`}
+          className={`button button-secondary  flex flex-row items-center`}
           onClick={activateBrowserWallet}
         >
-          Connect
+          {!account && "Connect"}
           {account && (
-            <div className="w-4 h-4 ml-2 bg-green-500 rounded-full flex-shrink-0" />
+            <span>Connected<div className="w-4 h-4 ml-2 inline-block bg-green-500 rounded-full flex-shrink-0" /></span>
           )}
         </button>
       </div>
