@@ -6,6 +6,17 @@ Popcorn removes all barriers to contributing to social good by offering yield op
 
 In this project we make it simple to grow your crypto assets on Optimism, while harnessing the security and battle-tested  Ethereum Layer 1 yield farming strategies. You can have the best of both worlds! This project demonstrates how to leverage the low gas fees of Optimism to enter into and withdraw from layer 1 yield farming strategies.
 
+To bridge Layer 2 liquidity to Layer 1 yield farming opportunities, we've implemented 2 Pool contracts: one on Ethereum Layer 1 and another on Optimism Layer 2. 
+
+The Layer 2 Pool contract uses a batch depositing and a batch withdrawal mechanism combined with Optimism's cross domain messenger to handle communication between the Layer 2 pool and the Layer 1 pool. This means that the end user can enter into and withdraw from yield farming pools on Layer 1 without having to pay any Layer 1 fees. 
+
+The batch depositing and withdrawal function will be managed through keepers which are incentivized to call the functions for token rewards. 
+
+The Layer 1 Pool implements an accounting system to collect management fees, withdrawal fees and performance fees. All of the fees generated will be sent to a contract to be shared with educational, environmental and open source initiatives that are chosen by token holders using on-chain governance contracts.
+
+
+This project is using Ethereum, Optimism, Solidity, Hardhat, Ethers, WaffleJS, Lerna and React. 
+
 Learn more about [Popcorn](https://popcorn.network).
 
 ## Prerequisite Software
