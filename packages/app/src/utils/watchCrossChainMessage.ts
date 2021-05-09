@@ -7,6 +7,7 @@ export default async function watchCrossChainMessage(
   watcher: any,
   toChain: "L1" | "L2"
 ):Promise<void> {
+  if (!transaction) return;
   const awaitTx = transaction.wait();
   toast.promise(
     awaitTx,
