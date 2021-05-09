@@ -67,7 +67,6 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled, ReentrancyGuard {
   address public rewardsManager;
 
   address public L2_Pool;
-  uint256 public pendingDeposits;
   uint256 constant BPS_DENOMINATOR = 10_000;
   uint256 constant SECONDS_PER_YEAR = 31_556_952;
   uint256 public withdrawalFee = 50;
@@ -115,10 +114,10 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled, ReentrancyGuard {
   * this assumes that an L2 withdrawal (moving DAI from L2 to L1) has been made and sent to this contract
   */
   function deposit() public returns (uint256) {
-    _takeFees();
-
     uint256 currentBalance = dai.balanceOf(address(this));
     require(currentBalance > 0, "not enough balance");
+
+    _takeFees();
 
     uint256 poolTokens = _issuePoolTokens(address(poolTokenEscrow), currentBalance);
     emit Deposit(msg.sender, currentBalance, poolTokens);
@@ -281,7 +280,7 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled, ReentrancyGuard {
   }
 
   function _transferDai(address to, uint256 amount) internal {
-    dai.safeApprove(address(this), amount);
+    dai.approve(address(this), amount);
     dai.safeTransferFrom(address(this), to, amount);
   }
 
@@ -321,7 +320,7 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled, ReentrancyGuard {
   }
 
   function _sendToCurve(uint256 amount) internal returns (uint256) {
-    dai.safeApprove(address(curveDepositZap), amount);
+    dai.approve(address(curveDepositZap), amount);
     uint256[4] memory curveDepositAmounts =
       [
         0, // USDX
@@ -341,12 +340,12 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled, ReentrancyGuard {
     internal
     returns (uint256)
   {
-    crvLPToken.safeApprove(address(curveDepositZap), crvLPTokenAmount);
+    crvLPToken.approve(address(curveDepositZap), crvLPTokenAmount);
     return curveDepositZap.remove_liquidity_one_coin(crvLPTokenAmount, 1, 0);
   }
 
   function _sendToYearn(uint256 amount) internal returns (uint256) {
-    crvLPToken.safeApprove(address(yearnVault), amount);
+    crvLPToken.approve(address(yearnVault), amount);
     uint256 yearnBalanceBefore = _yearnBalance();
     yearnVault.deposit(amount);
     uint256 yearnBalanceAfter = _yearnBalance();
