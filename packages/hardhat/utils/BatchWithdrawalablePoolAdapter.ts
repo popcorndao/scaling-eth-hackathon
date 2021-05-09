@@ -1,4 +1,5 @@
 import { BigNumber } from "@ethersproject/bignumber";
+import { parseEther } from "@ethersproject/units";
 import { BatchWithdrawablePool } from "../typechain/BatchWithdrawablePool";
 
 enum TransferStatus {
@@ -7,16 +8,16 @@ enum TransferStatus {
   Completed
 }
 
-type TransferStatuses =  "Pending" | "InTransit" | "Completed";
+export type TransferStatuses =  "Pending" | "InTransit" | "Completed";
 
-const TransferStatusMap: {[key: number]: TransferStatuses} = {
+export const TransferStatusMap: {[key: number]: TransferStatuses} = {
   [TransferStatus.Pending]: "Pending",
   [TransferStatus.InTransit]: "InTransit",
   [TransferStatus.Completed]: "Completed"
 }
 
 
-interface AddressWithdrawal {
+export interface AddressWithdrawal {
   batchId: string;
   unclaimedShares: BigNumber;
   claimable: boolean;
@@ -56,8 +57,10 @@ export class BatchWithdrawablePoolAdapter {
         batchId,
         unclaimedShares,
         claimable,
-        claimed: unclaimedShares.eq(0) && claimable,
-        tokensToReceive: unclaimedShares.mul(vault.tokenBalance).div(vault.unclaimedShares),
+        claimed: unclaimedShares.eq(0),
+        tokensToReceive: !vault.unclaimedShares.eq(0) ? 
+          unclaimedShares.mul(vault.tokenBalance).div(vault.unclaimedShares) : 
+          parseEther('0'),
         transferStatus: TransferStatusMap[vault.transferStatus]
       }
     }));
