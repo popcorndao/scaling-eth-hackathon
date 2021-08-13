@@ -4,13 +4,14 @@
 pragma solidity >0.5.0 <0.8.4;
 pragma experimental ABIEncoderV2;
 
-import "./L2DepositedERC20.sol";
 import "./BatchWithdrawablePool.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
+import { ERC20 } from "./ERC20.sol";
 
 /* Library Imports */
 import { OVM_CrossDomainEnabled } from "@eth-optimism/contracts/libraries/bridge/OVM_CrossDomainEnabled.sol";
-
+import { L2StandardERC20 } from "@eth-optimism/contracts/libraries/standards/L2StandardERC20.sol";
+import { iOVM_L2ERC20Bridge } from "@eth-optimism/contracts/iOVM/bridge/tokens/iOVM_L2ERC20Bridge.sol";
 
 /**
 * todo: create BatchDepositablePool with deposit receipts
@@ -20,7 +21,8 @@ contract L2_Pool is ERC20, OVM_CrossDomainEnabled, BatchWithdrawablePool {
 
   using SafeMath for uint256;
 
-  L2DepositedERC20 public oDAI;
+  L2StandardERC20 public oDAI;
+  iOVM_L2ERC20Bridge public L2_ERC20Gateway;
   address public L1_Pool;
   
   uint256 public toDeposit;
@@ -30,7 +32,8 @@ contract L2_Pool is ERC20, OVM_CrossDomainEnabled, BatchWithdrawablePool {
   event Deposit(address from, uint256 deposit, uint256 poolTokens);
 
   constructor(
-    L2DepositedERC20 _oDAI,
+    L2StandardERC20 _oDAI,
+    iOVM_L2ERC20Bridge _L2_ERC20Gateway,
     address _L1_Pool,
     address _L2_CrossDomainMessenger,
     uint256 _batchTransferPeriod
@@ -39,6 +42,7 @@ contract L2_Pool is ERC20, OVM_CrossDomainEnabled, BatchWithdrawablePool {
     BatchWithdrawablePool(_L1_Pool, _batchTransferPeriod) {
     batchTransferPeriod = _batchTransferPeriod;
     oDAI = _oDAI;
+    L2_ERC20Gateway=_L2_ERC20Gateway;
     L1_Pool = _L1_Pool;
     lastDepositMadeAt = block.timestamp;
   }
@@ -71,7 +75,7 @@ contract L2_Pool is ERC20, OVM_CrossDomainEnabled, BatchWithdrawablePool {
     
     // mint POP tokens to incentivize calling this function
 
-    oDAI.withdrawTo(L1_Pool, toDeposit); 
+    L2_ERC20Gateway.withdrawTo(address(oDAI), L1_Pool, toDeposit, 8900000, ""); 
     toDeposit = 0;
 
     // this is included for convenience. in production, the layer 1 deposit function will be called by a keeper
@@ -79,8 +83,8 @@ contract L2_Pool is ERC20, OVM_CrossDomainEnabled, BatchWithdrawablePool {
 
     sendCrossDomainMessage(
         address(L1_Pool),
-        data,
-        8900000
+        8900000,
+        data
     );
 
     lastDepositMadeAt = block.timestamp;

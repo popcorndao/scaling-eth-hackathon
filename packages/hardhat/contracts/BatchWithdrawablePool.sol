@@ -90,8 +90,8 @@ abstract contract BatchWithdrawablePool is OVM_CrossDomainEnabled {
 
     sendCrossDomainMessage(
         L1_Target,
-        data,
-        8900000
+        8900000,
+        data
     );
   }
 

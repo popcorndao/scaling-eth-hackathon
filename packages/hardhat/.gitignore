@@ -8,6 +8,6 @@ cache/
 cache-ovm/
 optimism
 typechain/
-
+typechain-ovm/
 .env
 yarn-error.log

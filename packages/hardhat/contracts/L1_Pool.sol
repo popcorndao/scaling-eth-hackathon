@@ -15,7 +15,7 @@ import "hardhat/console.sol";
 
 /* Library Imports */
 import { OVM_CrossDomainEnabled } from "@eth-optimism/contracts/libraries/bridge/OVM_CrossDomainEnabled.sol";
-
+import { iOVM_L1ERC20Bridge } from "@eth-optimism/contracts/iOVM/bridge/tokens/iOVM_L1ERC20Bridge.sol";
 
 interface CrvLPToken is IERC20 {}
 
@@ -40,10 +40,6 @@ interface CurveDepositZap {
   function calc_withdraw_one_coin(uint256 amount, int128 i) external view returns (uint256);
 }
 
-interface OVM_L1ERC20Gateway {
-  function depositTo(address _address, uint256 amount) external;
-}
-
 interface PoolTokenEscrow {}
 
 /**
@@ -61,10 +57,11 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled, ReentrancyGuard {
   CrvLPToken public crvLPToken;
   YearnVault public yearnVault;
   CurveDepositZap public curveDepositZap;
-  OVM_L1ERC20Gateway public L1_ERC20Gateway;
+  iOVM_L1ERC20Bridge public L1_ERC20Gateway;
   PoolTokenEscrow public poolTokenEscrow;
 
   address public rewardsManager;
+  address public l2Dai;
 
   address public L2_Pool;
   uint256 constant BPS_DENOMINATOR = 10_000;
@@ -87,15 +84,17 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled, ReentrancyGuard {
 
   constructor(
     IERC20 dai_,
+    address l2Dai_,
     YearnVault yearnVault_,
     CurveDepositZap curveDepositZap_,
     address l1CrossDomainMessenger_,
-    OVM_L1ERC20Gateway l1Erc20Gateway_,
+    iOVM_L1ERC20Bridge l1Erc20Gateway_,
     address rewardsManager_,
     PoolTokenEscrow poolTokenEscrow_
   ) ERC20("Popcorn DAI L1_YieldOptimizerPool", "L1_popDAI_LP")
     OVM_CrossDomainEnabled(l1CrossDomainMessenger_) {
     dai = dai_;
+    l2Dai=l2Dai_;
     yearnVault = yearnVault_;
     crvLPToken = CrvLPToken(yearnVault.token());
     curveDepositZap = curveDepositZap_;
@@ -160,8 +159,8 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled, ReentrancyGuard {
 
     sendCrossDomainMessage(
         address(L2_Pool),
-        data,
-        8900000
+        8900000,
+        data
     );
   }
 
@@ -276,7 +275,7 @@ contract L1_Pool is ERC20, Ownable, OVM_CrossDomainEnabled, ReentrancyGuard {
 
   function _transferWithdrawal(address address_, uint256 amount) internal {
     dai.approve(address(L1_ERC20Gateway), amount);
-    L1_ERC20Gateway.depositTo(address_, amount);
+    L1_ERC20Gateway.depositERC20To(address(dai),l2Dai, address_, amount, 8900000, "");
   }
 
   function _transferDai(address to, uint256 amount) internal {
